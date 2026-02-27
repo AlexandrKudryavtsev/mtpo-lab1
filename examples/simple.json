@@ -1,0 +1,79 @@
+{
+    "applicants": [
+        {
+            "id": "A1",
+            "name": "Иван Петров",
+            "scores": 285,
+            "priorities": [
+                "U1",
+                "U2",
+                "U3"
+            ]
+        },
+        {
+            "id": "A2",
+            "name": "Анна Сидорова",
+            "scores": 270,
+            "priorities": [
+                "U2",
+                "U1",
+                "U3"
+            ]
+        },
+        {
+            "id": "A3",
+            "name": "Петр Сидоров",
+            "scores": 260,
+            "priorities": [
+                "U3",
+                "U1",
+                "U2"
+            ]
+        },
+        {
+            "id": "A4",
+            "name": "Мария Иванова",
+            "scores": 250,
+            "priorities": [
+                "U1",
+                "U2",
+                "U3"
+            ]
+        }
+    ],
+    "universities": [
+        {
+            "id": "U1",
+            "name": "МГУ",
+            "capacity": 2,
+            "priorities": [
+                "A1",
+                "A2",
+                "A3",
+                "A4"
+            ]
+        },
+        {
+            "id": "U2",
+            "name": "СПбГУ",
+            "capacity": 1,
+            "priorities": [
+                "A2",
+                "A1",
+                "A3",
+                "A4"
+            ]
+        },
+        {
+            "id": "U3",
+            "name": "НГУ",
+            "capacity": 1,
+            "priorities": [
+                "A3",
+                "A1",
+                "A2",
+                "A4"
+            ]
+        }
+    ]
+}
