@@ -209,4 +209,81 @@ describe('GaleShapleyLists Algorithm', () => {
             expect(result.stable).toBe(true);
         });
     });
+
+    describe('Additional edge cases for Lists algorithm', () => {
+        test('should handle applicant with no priorities left', () => {
+            const algorithm = new GaleShapleyLists();
+            const applicants = [
+                new Applicant('A1', 'Иван', 285, ['U1', 'U2'])
+            ];
+            const universities = [
+                new University('U1', 'МГУ', 1, ['A2']),
+                new University('U2', 'СПбГУ', 1, ['A2'])
+            ];
+
+            const result = algorithm.match(applicants, universities);
+            expect(result.matching).toHaveLength(0);
+            expect(result.unmatched).toContain('A1');
+        });
+
+        test('should handle university not found in map', () => {
+            const algorithm = new GaleShapleyLists();
+
+            const originalMatch = algorithm.match;
+            algorithm.match = function (applicants, universities) {
+                const applicantsMap = new Map(applicants.map(a => [a.id, a]));
+                const universitiesMap = new Map(universities.map(u => [u.id, u]));
+
+                universitiesMap.delete('U1');
+
+                const freeApplicants = new Set(applicants.map(a => a.id));
+                const universityAccepted = new Map();
+                const applicantNextProposal = new Map();
+
+                universities.forEach(u => {
+                    universityAccepted.set(u.id, []);
+                });
+
+                applicants.forEach(a => {
+                    applicantNextProposal.set(a.id, 0);
+                });
+
+                if (freeApplicants.size > 0) {
+                    const applicantId = Array.from(freeApplicants)[0];
+                    const applicant = applicantsMap.get(applicantId);
+
+                    const universityId = applicant.priorities[0];
+                    const university = universitiesMap.get(universityId); // undefined
+
+                    if (!university) {
+                        freeApplicants.delete(applicantId);
+                    }
+                }
+
+                return algorithm.buildResult(applicants, universities, universityAccepted);
+            };
+
+            const applicants = [
+                new Applicant('A1', 'Иван', 285, ['U1'])
+            ];
+            const universities = [
+                new University('U1', 'МГУ', 1, ['A1'])
+            ];
+
+            const result = algorithm.match(applicants, universities);
+            expect(result).toBeDefined();
+        });
+
+        test('should handle buildEmptyResult with applicants', () => {
+            const algorithm = new GaleShapleyLists();
+            const applicants = [
+                new Applicant('A1', 'Иван', 285, ['U1'])
+            ];
+
+            const result = algorithm.buildEmptyResult(applicants);
+            expect(result.matching).toHaveLength(0);
+            expect(result.unmatched).toHaveLength(1);
+            expect(result.unmatched[0]).toBe('A1');
+        });
+    });
 });

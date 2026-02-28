@@ -299,4 +299,71 @@ describe('ConsoleIO', () => {
             expect(mockRl.close).toHaveBeenCalled();
         });
     });
+
+    describe('Additional consoleIO tests', () => {
+        let consoleIO;
+        let mockRl;
+
+        beforeEach(() => {
+            jest.spyOn(console, 'log').mockImplementation(() => { });
+            jest.spyOn(console, 'clear').mockImplementation(() => { });
+
+            mockRl = {
+                question: jest.fn(),
+                close: jest.fn()
+            };
+            readline.createInterface.mockReturnValue(mockRl);
+
+            consoleIO = new ConsoleIO();
+        });
+
+        test('showStatisticsAndRecommendations should handle no recommendations and tips', () => {
+            const matching = [];
+            const applicants = [];
+            const universities = [];
+            const stats = {
+                total_applicants: 0,
+                total_places: 0,
+                matched_count: 0,
+                matched_percentage: '0.00',
+                competition: '0.00',
+                satisfied_first_choice: 0,
+                satisfied_first_choice_percentage: '0.00',
+                average_priority: '0.00',
+                per_university: {}
+            };
+            const recommendations = [];
+            const tips = [];
+
+            consoleIO.showStatisticsAndRecommendations(
+                matching, applicants, universities, stats, recommendations, tips
+            );
+
+            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Нет рекомендаций'));
+            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Нет советов'));
+        });
+
+        test('showComparison should handle missing differences object', () => {
+            const comparison = {
+                matrix: { matched: 5, unmatched: 0, avgPriority: '0.5' },
+                lists: { matched: 4, unmatched: 1, avgPriority: '0.75' },
+                same_matching: false
+            };
+
+            consoleIO.showComparison(comparison);
+
+            expect(console.log).toHaveBeenCalled();
+        });
+
+        test('inputManualData should handle invalid numbers gracefully', async () => {
+            mockRl.question
+                .mockImplementationOnce((prompt, callback) => callback('abc')) // не число
+                .mockImplementationOnce((prompt, callback) => callback('0'));
+
+            const result = await consoleIO.inputManualData();
+
+            expect(result.applicants).toHaveLength(0);
+            expect(result.universities).toHaveLength(0);
+        });
+    });
 });

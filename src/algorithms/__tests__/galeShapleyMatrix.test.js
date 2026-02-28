@@ -222,4 +222,75 @@ describe('GaleShapleyMatrix Algorithm', () => {
             expect(matrix.universityPrefs.U1.A1).toBeLessThan(matrix.universityPrefs.U1.A2);
         });
     });
+
+    describe('Edge cases and uncovered lines', () => {
+        test('should handle applicant with priorities that lead to no matches', () => {
+            const algorithm = new GaleShapleyMatrix();
+            const applicants = [
+                new Applicant('A1', 'Иван', 285, ['U3']) // Приоритет на несуществующий вуз
+            ];
+            const universities = [
+                new University('U1', 'МГУ', 1, ['A1'])
+            ];
+
+            const result = algorithm.match(applicants, universities);
+            expect(result.matching).toHaveLength(0);
+            expect(result.unmatched).toContain('A1');
+        });
+
+        test('should handle case when applicant proposes to university not in her priorities', () => {
+            const algorithm = new GaleShapleyMatrix();
+
+            const applicants = [
+                new Applicant('A1', 'Иван', 285, ['U1', 'U2'])
+            ];
+            const universities = [
+                new University('U1', 'МГУ', 1, ['A2']) // A1 не в приоритетах U1
+            ];
+
+            const result = algorithm.match(applicants, universities);
+            expect(result.matching).toHaveLength(0);
+            expect(result.unmatched).toContain('A1');
+        });
+
+        test('should handle findBlockingPairs method', () => {
+            const algorithm = new GaleShapleyMatrix();
+            const applicants = [
+                new Applicant('A1', 'Иван', 285, ['U1', 'U2']),
+                new Applicant('A2', 'Анна', 270, ['U1', 'U2'])
+            ];
+            const universities = [
+                new University('U1', 'МГУ', 1, ['A1', 'A2']),
+                new University('U2', 'СПбГУ', 1, ['A2', 'A1'])
+            ];
+
+            const result = algorithm.match(applicants, universities);
+
+            const blockingPairs = algorithm.findBlockingPairs(
+                result.matching,
+                applicants,
+                universities
+            );
+
+            expect(Array.isArray(blockingPairs)).toBe(true);
+        });
+
+        test('should handle checkStability with unmatched applicants', () => {
+            const algorithm = new GaleShapleyMatrix();
+            const applicants = [
+                new Applicant('A1', 'Иван', 285, ['U1']),
+                new Applicant('A2', 'Анна', 270, ['U1'])
+            ];
+            const universities = [
+                new University('U1', 'МГУ', 1, ['A1', 'A2'])
+            ];
+
+            const matching = [
+                { applicant: 'A1', university: 'U1', priority_index: 0 }
+            ];
+
+            const stable = algorithm.checkStability(matching, applicants, universities);
+            expect(stable).toBe(true);
+        });
+    });
 });
