@@ -1,363 +1,366 @@
 const University = require("../University");
 
 describe('University Model', () => {
-    describe('Constructor and Validation', () => {
-        test('should create a valid university with correct properties', () => {
-            const university = new University('U1', 'МГУ', 100, ['A1', 'A2']);
-
-            expect(university.id).toBe('U1');
-            expect(university.name).toBe('МГУ');
-            expect(university.capacity).toBe(100);
-            expect(university.priorities).toEqual(['A1', 'A2']);
-            expect(university.accepted).toEqual([]);
+    // Boundary Value Analysis
+    // Граничные значения для capacity: [1, 0, отрицательные]
+    describe('BVA: capacity boundaries', () => {
+        test('min valid: 1', () => {
+            expect(() => new University('U1', 'МГУ', 1, ['A1'])).not.toThrow();
         });
 
-        test('should throw error if capacity is not positive', () => {
-            expect(() => {
-                new University('U1', 'МГУ', 0, ['A1']);
-            }).toThrow('Вместимость должна быть положительным числом');
-
-            expect(() => {
-                new University('U1', 'МГУ', -5, ['A1']);
-            }).toThrow('Вместимость должна быть положительным числом');
+        test('invalid: 0 (below min)', () => {
+            expect(() => new University('U1', 'МГУ', 0, ['A1']))
+                .toThrow('Вместимость должна быть положительным числом');
         });
 
-        test('should throw error if priorities contain duplicates', () => {
-            expect(() => {
-                new University('U1', 'МГУ', 100, ['A1', 'A1', 'A2']);
-            }).toThrow('Приоритеты не могут содержать дубликаты');
+        test('invalid: -1 (negative)', () => {
+            expect(() => new University('U1', 'МГУ', -1, ['A1']))
+                .toThrow('Вместимость должна быть положительным числом');
+        });
+
+        test('typical: 100', () => {
+            expect(() => new University('U1', 'МГУ', 100, ['A1'])).not.toThrow();
         });
     });
 
-    describe('Admission management', () => {
+    // Equivalence Partitioning
+    // Классы: валидный массив, пустой, дубликаты, не массив
+    describe('EP: priorities array states', () => {
+        test('valid: unique priorities', () => {
+            expect(() => new University('U1', 'МГУ', 2, ['A1', 'A2'])).not.toThrow();
+        });
+
+        test('invalid: empty array', () => {
+            expect(() => new University('U1', 'МГУ', 2, []))
+                .toThrow('Список приоритетов не может быть пустым');
+        });
+
+        test('invalid: duplicates', () => {
+            expect(() => new University('U1', 'МГУ', 2, ['A1', 'A1']))
+                .toThrow('Приоритеты не могут содержать дубликаты');
+        });
+
+        test('invalid: not array', () => {
+            expect(() => new University('U1', 'МГУ', 2, 'A1'))
+                .toThrow('Список приоритетов не может быть пустым');
+        });
+    });
+
+    // Statement Testing
+    // Покрытие всех строк кода
+    describe('Statement: all methods coverage', () => {
         let university;
 
         beforeEach(() => {
             university = new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3']);
         });
 
-        test('canAccept should check if there is free capacity', () => {
-            expect(university.canAccept()).toBe(true);
+        test('constructor initializes fields', () => {
+            expect(university.id).toBe('U1');
+            expect(university.name).toBe('МГУ');
+            expect(university.capacity).toBe(2);
+            expect(university.priorities).toEqual(['A1', 'A2', 'A3']);
+            expect(university.accepted).toEqual([]);
+        });
 
-            university.accepted = ['A1'];
+        test('canAccept checks capacity', () => {
             expect(university.canAccept()).toBe(true);
-
             university.accepted = ['A1', 'A2'];
             expect(university.canAccept()).toBe(false);
         });
 
-        test('addApplicant should add applicant if capacity available', () => {
-            const result = university.addApplicant('A1');
-
-            expect(result).toBe(true);
+        test('addApplicant adds if space available', () => {
+            expect(university.addApplicant('A1')).toBe(true);
             expect(university.accepted).toContain('A1');
+
+            expect(university.addApplicant('A1')).toBe(false); // уже есть
             expect(university.accepted.length).toBe(1);
         });
 
-        test('addApplicant should fail if no capacity', () => {
+        test('removeApplicant removes if exists', () => {
             university.accepted = ['A1', 'A2'];
 
-            const result = university.addApplicant('A3');
-
-            expect(result).toBe(false);
-            expect(university.accepted).not.toContain('A3');
-        });
-
-        test('removeApplicant should remove applicant', () => {
-            university.accepted = ['A1', 'A2'];
-
-            const result = university.removeApplicant('A1');
-
-            expect(result).toBe(true);
+            expect(university.removeApplicant('A1')).toBe(true);
             expect(university.accepted).toEqual(['A2']);
+
+            expect(university.removeApplicant('A3')).toBe(false);
         });
 
-        test('removeApplicant should return false if applicant not found', () => {
-            university.accepted = ['A1', 'A2'];
-
-            const result = university.removeApplicant('A3');
-
-            expect(result).toBe(false);
-            expect(university.accepted).toEqual(['A1', 'A2']);
-        });
-
-        test('getWorstAccepted should return the lowest priority applicant', () => {
-            university.accepted = ['A2', 'A1'];
-
-            const worst = university.getWorstAccepted();
-
-            expect(worst).toBe('A2');
-        });
-
-        test('isBetterThanWorst should compare applicant with worst accepted', () => {
-            university.accepted = ['A2', 'A3']; // A1 лучше чем A2 и A3
-
-            expect(university.isBetterThanWorst('A1')).toBe(true);
-            expect(university.isBetterThanWorst('A4')).toBe(false);
-        });
-
-        test('replaceWorstWith should swap applicants', () => {
-            const university = new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3']);
-            university.accepted = ['A2', 'A3'];
-
-            const replaced = university.replaceWorstWith('A1');
-
-            expect(replaced).toBe('A3');
-            expect(university.accepted).toContain('A1');
-            expect(university.accepted).not.toContain('A3');
-            expect(university.accepted).toContain('A2');
-            expect(university.accepted.length).toBe(2);
-        });
-    });
-
-    describe('Priority utilities', () => {
-        test('getPriorityIndex should return correct index', () => {
-            const university = new University('U1', 'МГУ', 100, ['A1', 'A2', 'A3']);
-
+        test('getPriorityIndex returns correct index', () => {
             expect(university.getPriorityIndex('A2')).toBe(1);
             expect(university.getPriorityIndex('A4')).toBe(-1);
         });
 
-        test('hasApplicant should check if applicant is in priorities', () => {
-            const university = new University('U1', 'МГУ', 100, ['A1', 'A2']);
+        test('getWorstAccepted identifies lowest priority', () => {
+            university.accepted = ['A2', 'A3']; // A2(1), A3(2)
+            expect(university.getWorstAccepted()).toBe('A3');
 
-            expect(university.hasApplicant('A1')).toBe(true);
-            expect(university.hasApplicant('A3')).toBe(false);
+            university.accepted = ['A1', 'A3']; // A1(0), A3(2)
+            expect(university.getWorstAccepted()).toBe('A3');
         });
-    });
 
-    describe('Serialization', () => {
-        test('toJSON should return plain object', () => {
-            const university = new University('U1', 'МГУ', 100, ['A1', 'A2']);
+        test('getWorstAccepted handles empty list', () => {
+            expect(university.getWorstAccepted()).toBeNull();
+        });
+
+        test('getWorstAccepted handles non-prioritized applicants', () => {
+            university.accepted = ['A1', 'X1']; // A1(0), X1(-1)
+            expect(university.getWorstAccepted()).toBe('X1');
+        });
+
+        test('isBetterThanWorst compares correctly', () => {
+            university.accepted = ['A2', 'A3']; // A2(1), A3(2)
+
+            expect(university.isBetterThanWorst('A1')).toBe(true);  // A1(0) лучше
+            expect(university.isBetterThanWorst('A4')).toBe(false); // A4(-1) хуже
+        });
+
+        test('isBetterThanWorst returns true if capacity available', () => {
+            expect(university.isBetterThanWorst('X1')).toBe(true);
+        });
+
+        test('replaceWorstWith replaces when better applicant exists', () => {
+            university.accepted = ['A2', 'A3']; // A2(1), A3(2)
+
+            const replaced = university.replaceWorstWith('A1'); // A1(0) лучше
+            expect(replaced).toBe('A3');
+            expect(university.accepted).toContain('A1');
+            expect(university.accepted).not.toContain('A3');
+        });
+
+        test('replaceWorstWith returns null when not better', () => {
+            university.accepted = ['A1', 'A2']; // A1(0), A2(1)
+
+            const replaced = university.replaceWorstWith('A4'); // A4(-1) хуже
+            expect(replaced).toBeNull();
+            expect(university.accepted).toEqual(['A1', 'A2']);
+        });
+
+        test('replaceWorstWith adds if capacity available', () => {
+            const replaced = university.replaceWorstWith('A1');
+            expect(replaced).toBeNull();
+            expect(university.accepted).toContain('A1');
+        });
+
+        test('hasApplicant checks priorities', () => {
+            expect(university.hasApplicant('A1')).toBe(true);
+            expect(university.hasApplicant('A4')).toBe(false);
+        });
+
+        test('toJSON serializes correctly', () => {
             university.accepted = ['A1'];
-
-            const json = university.toJSON();
-
-            expect(json).toEqual({
+            expect(university.toJSON()).toEqual({
                 id: 'U1',
                 name: 'МГУ',
-                capacity: 100,
-                priorities: ['A1', 'A2'],
+                capacity: 2,
+                priorities: ['A1', 'A2', 'A3'],
                 accepted: ['A1']
             });
         });
 
-        test('fromJSON should create University from parsed JSON', () => {
+        test('fromJSON creates instance', () => {
             const data = {
-                id: 'U1',
-                name: 'МГУ',
-                capacity: 100,
-                priorities: ['A1', 'A2'],
-                accepted: ['A1']
+                id: 'U2',
+                name: 'СПбГУ',
+                capacity: 3,
+                priorities: ['A2', 'A1'],
+                accepted: ['A2']
             };
 
-            const university = University.fromJSON(data);
-
-            expect(university).toBeInstanceOf(University);
-            expect(university.id).toBe('U1');
-            expect(university.accepted).toEqual(['A1']);
+            const restored = University.fromJSON(data);
+            expect(restored).toBeInstanceOf(University);
+            expect(restored.id).toBe('U2');
+            expect(restored.accepted).toEqual(['A2']);
         });
     });
 
-    describe('Edge cases with missing priorities', () => {
+    // Branch Testing
+    // Покрытие всех веток условий
+    describe('Branch: condition coverage', () => {
         let university;
 
         beforeEach(() => {
             university = new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3']);
         });
 
-        test('getWorstAccepted should handle applicants not in priorities', () => {
-            university.accepted = ['A1', 'X1'];
+        describe('validateInput branches', () => {
+            test('id empty -> throw', () => {
+                expect(() => new University('', 'МГУ', 2, ['A1']))
+                    .toThrow('ID вуза не может быть пустым');
+            });
 
-            const worst = university.getWorstAccepted();
-            expect(worst).toBe('X1');
+            test('id non-empty -> ok', () => {
+                expect(() => new University('U1', 'МГУ', 2, ['A1'])).not.toThrow();
+            });
+
+            test('name empty -> throw', () => {
+                expect(() => new University('U1', '', 2, ['A1']))
+                    .toThrow('Название вуза не может быть пустым');
+            });
+
+            test('name non-empty -> ok', () => {
+                expect(() => new University('U1', 'МГУ', 2, ['A1'])).not.toThrow();
+            });
+
+            test('capacity <= 0 -> throw', () => {
+                expect(() => new University('U1', 'МГУ', 0, ['A1']))
+                    .toThrow('Вместимость должна быть положительным числом');
+            });
+
+            test('capacity > 0 -> ok', () => {
+                expect(() => new University('U1', 'МГУ', 1, ['A1'])).not.toThrow();
+            });
         });
 
-        test('isBetterThanWorst should return false for applicant not in priorities when full', () => {
-            university.accepted = ['A2', 'A3'];
+        describe('addApplicant branches', () => {
+            test('canAccept true AND not already accepted -> true', () => {
+                expect(university.addApplicant('A1')).toBe(true);
+            });
 
-            expect(university.isBetterThanWorst('X1')).toBe(false);
+            test('canAccept false -> false', () => {
+                university.accepted = ['A1', 'A2'];
+                expect(university.addApplicant('A3')).toBe(false);
+            });
+
+            test('already accepted -> false', () => {
+                university.addApplicant('A1');
+                expect(university.addApplicant('A1')).toBe(false);
+            });
         });
 
-        test('isBetterThanWorst should return true for applicant in priorities when worst is not in priorities', () => {
-            university.accepted = ['X1', 'X2'];
+        describe('removeApplicant branches', () => {
+            test('applicant exists -> true', () => {
+                university.accepted = ['A1'];
+                expect(university.removeApplicant('A1')).toBe(true);
+            });
 
-            expect(university.isBetterThanWorst('A1')).toBe(true);
+            test('applicant not exists -> false', () => {
+                expect(university.removeApplicant('A1')).toBe(false);
+            });
         });
 
-        test('replaceWorstWith should not replace if new applicant not in priorities when full with valid applicants', () => {
-            university.accepted = ['A2', 'A3'];
+        describe('getWorstAccepted branches', () => {
+            test('accepted empty -> null', () => {
+                expect(university.getWorstAccepted()).toBeNull();
+            });
 
-            const replaced = university.replaceWorstWith('X1');
+            test('all accepted have priorities -> returns worst', () => {
+                university.accepted = ['A1', 'A2']; // A1(0), A2(1)
+                expect(university.getWorstAccepted()).toBe('A2');
+            });
 
-            expect(replaced).toBeNull();
-            expect(university.accepted).toEqual(['A2', 'A3']);
+            test('mix of prioritized and non-prioritized -> returns non-prioritized', () => {
+                university.accepted = ['A1', 'X1']; // A1(0), X1(-1)
+                expect(university.getWorstAccepted()).toBe('X1');
+            });
+
+            test('all non-prioritized -> returns first', () => {
+                university.accepted = ['X1', 'X2', 'X3'];
+                expect(university.getWorstAccepted()).toBe('X1');
+            });
+        });
+
+        describe('isBetterThanWorst branches', () => {
+            test('capacity available -> true', () => {
+                expect(university.isBetterThanWorst('X1')).toBe(true);
+            });
+
+            test('no capacity AND applicant not in priorities -> false', () => {
+                university.accepted = ['A1', 'A2'];
+                expect(university.isBetterThanWorst('X1')).toBe(false);
+            });
+
+            test('no capacity AND worst not in priorities -> true', () => {
+                university.accepted = ['X1', 'X2'];
+                expect(university.isBetterThanWorst('A1')).toBe(true);
+            });
+
+            test('both in priorities AND applicant better -> true', () => {
+                university.accepted = ['A2', 'A3']; // A2(1), A3(2)
+                expect(university.isBetterThanWorst('A1')).toBe(true); // A1(0)
+            });
+
+            test('both in priorities AND applicant worse -> false', () => {
+                university.accepted = ['A1', 'A2']; // A1(0), A2(1)
+                expect(university.isBetterThanWorst('A3')).toBe(false); // A3(2)
+            });
+        });
+
+        describe('replaceWorstWith branches', () => {
+            test('applicant already accepted -> null', () => {
+                university.accepted = ['A1'];
+                expect(university.replaceWorstWith('A1')).toBeNull();
+            });
+
+            test('capacity available -> null and adds', () => {
+                const result = university.replaceWorstWith('A1');
+                expect(result).toBeNull();
+                expect(university.accepted).toContain('A1');
+            });
+
+            test('no capacity AND not better -> null', () => {
+                university.accepted = ['A1', 'A2'];
+                expect(university.replaceWorstWith('A4')).toBeNull();
+            });
+
+            test('no capacity AND better -> replaces', () => {
+                university.accepted = ['A2', 'A3']; // A2(1), A3(2)
+                const replaced = university.replaceWorstWith('A1'); // A1(0)
+                expect(replaced).toBe('A3');
+                expect(university.accepted).toContain('A1');
+            });
+
+            test('worstId null -> null', () => {
+                const emptyUni = new University('U1', 'МГУ', 2, ['A1']);
+                emptyUni.getWorstAccepted = jest.fn().mockReturnValue(null);
+                expect(emptyUni.replaceWorstWith('A1')).toBeNull();
+            });
         });
     });
 
-    describe('Complex scenarios', () => {
-        test('should handle multiple replacements correctly', () => {
-            const university = new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3', 'A4']);
-
-            // Добавляем двух абитуриентов
-            university.addApplicant('A3');
-            university.addApplicant('A4');
-            expect(university.accepted).toEqual(['A3', 'A4']);
-
-            // Пробуем заменить A3 (худший) на A1 (лучший)
-            const replaced1 = university.replaceWorstWith('A1');
-            // Должен заменить A4, так как A3 имеет индекс 2, A4 - индекс 3
-            expect(replaced1).toBe('A4');
-            expect(university.accepted).toContain('A1');
-            expect(university.accepted).toContain('A3');
-
-            // Пробуем заменить A2 (индекс 1) на A1 (уже есть)
-            const replaced2 = university.replaceWorstWith('A2');
-            expect(replaced2).toBe('A3');
-            expect(university.accepted).toEqual(['A1', 'A2']);
+    // Параметризованные тесты (оптимизация)
+    describe('Parameterized (optimized)', () => {
+        test.each([
+            ['U1', 'МГУ', 1, ['A1'], true],
+            ['', 'МГУ', 1, ['A1'], false],
+            ['U1', '', 1, ['A1'], false],
+            ['U1', 'МГУ', 0, ['A1'], false],
+            ['U1', 'МГУ', -1, ['A1'], false],
+            ['U1', 'МГУ', 1, [], false],
+            ['U1', 'МГУ', 1, ['A1', 'A1'], false]
+        ])('validate id:%s name:%s capacity:%d', (id, name, capacity, priorities, valid) => {
+            if (valid) {
+                expect(() => new University(id, name, capacity, priorities)).not.toThrow();
+            } else {
+                expect(() => new University(id, name, capacity, priorities)).toThrow();
+            }
         });
     });
 
+    // Edge Cases
+    // Дополнительные граничные случаи
+    describe('Edge cases', () => {
+        test('replaceWorstWith handles non-prioritized worst correctly', () => {
+            const uni = new University('U1', 'МГУ', 2, ['A1', 'A2']);
+            uni.accepted = ['X1', 'X2']; // оба не в приоритетах
 
-    describe('Diagnostic tests for worst accepted', () => {
-        test('should identify worst accepted correctly', () => {
-            const university = new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3']);
-            university.accepted = ['A2', 'A3'];
-
-            const worst = university.getWorstAccepted();
-
-            expect(worst).toBe('A3');
-        });
-    });
-
-    describe('Diagnostic tests for worst accepted', () => {
-        test('should identify worst accepted correctly', () => {
-            const university = new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3']);
-            university.accepted = ['A2', 'A3'];
-
-            const worst = university.getWorstAccepted();
-
-            expect(worst).toBe('A3');
-        });
-    });
-
-    test('replaceWorstWith should not replace if new applicant not in priorities', () => {
-        const university = new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3']);
-        university.accepted = ['A2', 'A3'];
-
-        const replaced = university.replaceWorstWith('X1');
-
-        expect(replaced).toBeNull();
-        expect(university.accepted).toEqual(['A2', 'A3']);
-    });
-
-    describe('Edge cases for getWorstAccepted', () => {
-        let university;
-
-        beforeEach(() => {
-            university = new University('U1', 'МГУ', 3, ['A1', 'A2', 'A3']);
-        });
-
-        test('should handle empty accepted list', () => {
-            expect(university.getWorstAccepted()).toBeNull();
-        });
-
-        test('should handle mix of prioritized and non-prioritized applicants', () => {
-            university.accepted = ['A1', 'X1', 'X2'];
-
-            const worst = university.getWorstAccepted();
-
-            expect(['X1', 'X2']).toContain(worst);
-        });
-
-        test('should correctly compare when all accepted have no priorities', () => {
-            university.accepted = ['X1', 'X2', 'X3'];
-
-            expect(university.getWorstAccepted()).toBe('X1');
-        });
-
-        test('should handle when some have priorities and some do not', () => {
-            university.accepted = ['X1', 'A2', 'X2'];
-
-            const worst = university.getWorstAccepted();
-
-            expect(['X1', 'X2']).toContain(worst);
-            expect(worst).not.toBe('A2');
-        });
-    });
-
-    describe('Complex replacement scenarios', () => {
-        test('should not replace if new applicant equals worst in priority', () => {
-            const university = new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3']);
-            university.accepted = ['A2', 'A3'];
-
-            const replaced = university.replaceWorstWith('A3');
-
-            expect(replaced).toBeNull();
-            expect(university.accepted).toEqual(['A2', 'A3']);
-        });
-
-        test('should not replace if new applicant not in priorities and all accepted are prioritized', () => {
-            const university = new University('U1', 'МГУ', 2, ['A1', 'A2']);
-            university.accepted = ['A1', 'A2'];
-
-            const replaced = university.replaceWorstWith('X1');
-
-            expect(replaced).toBeNull();
-            expect(university.accepted).toEqual(['A1', 'A2']);
-        });
-
-        test('should replace non-prioritized applicant with prioritized one', () => {
-            const university = new University('U1', 'МГУ', 2, ['A1', 'A2']);
-            university.accepted = ['X1', 'X2'];
-
-            const replaced = university.replaceWorstWith('A1');
-
+            const replaced = uni.replaceWorstWith('A1');
             expect(['X1', 'X2']).toContain(replaced);
-            expect(university.accepted).toContain('A1');
-            expect(university.accepted.length).toBe(2);
+            expect(uni.accepted).toContain('A1');
+            expect(uni.accepted.length).toBe(2);
         });
 
-        test('should handle multiple replacements in sequence', () => {
-            const university = new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3', 'A4']);
+        test('sequential replacements work correctly', () => {
+            const uni = new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3']);
 
-            university.addApplicant('X1');
-            university.addApplicant('X2');
+            uni.addApplicant('X1');
+            uni.addApplicant('X2');
 
-            let replaced = university.replaceWorstWith('A4');
-            expect(['X1', 'X2']).toContain(replaced);
-            expect(university.accepted).toContain('A4');
+            uni.replaceWorstWith('A3');
+            uni.replaceWorstWith('A1');
 
-            replaced = university.replaceWorstWith('A1');
-            expect(replaced).not.toBeNull();
-            expect(university.accepted).toContain('A1');
-            expect(university.accepted.length).toBe(2);
-
-            expect(university.accepted.every(id => id.startsWith('A'))).toBe(true);
-        });
-    });
-
-    describe('isBetterThanWorst edge cases', () => {
-        test('should return true if there is capacity regardless of priority', () => {
-            const university = new University('U1', 'МГУ', 3, ['A1', 'A2']);
-            university.accepted = ['A1'];
-
-            expect(university.isBetterThanWorst('X1')).toBe(true);
-        });
-
-        test('should handle case when worst accepted is not in priorities', () => {
-            const university = new University('U1', 'МГУ', 2, ['A1', 'A2']);
-            university.accepted = ['A1', 'X1'];
-
-            expect(university.isBetterThanWorst('A2')).toBe(true);
-            expect(university.isBetterThanWorst('X2')).toBe(false);
-        });
-
-        test('should handle case when new applicant not in priorities', () => {
-            const university = new University('U1', 'МГУ', 2, ['A1', 'A2']);
-            university.accepted = ['A1', 'A2'];
-
-            expect(university.isBetterThanWorst('X1')).toBe(false);
+            expect(uni.accepted.every(id => id.startsWith('A'))).toBe(true);
+            expect(uni.accepted).toContain('A1');
         });
     });
 });

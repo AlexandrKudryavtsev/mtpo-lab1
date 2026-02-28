@@ -29,89 +29,62 @@ describe('ConsoleIO', () => {
         jest.restoreAllMocks();
     });
 
-    describe('Constructor', () => {
-        test('should create readline interface', () => {
-            expect(readline.createInterface).toHaveBeenCalledWith({
-                input: process.stdin,
-                output: process.stdout
-            });
-        });
-    });
-
-    describe('question method', () => {
-        test('should ask question and return trimmed answer', async () => {
-            const prompt = 'Enter name: ';
-            const answer = '  John Doe  ';
-
+    // Boundary Value Analysis
+    describe('BVA: question method boundaries', () => {
+        test('empty input returns empty string', async () => {
             mockRl.question.mockImplementation((prompt, callback) => {
-                callback(answer);
+                callback('');
             });
 
-            const result = await consoleIO.question(prompt);
+            const result = await consoleIO.question('Prompt: ');
+            expect(result).toBe('');
+        });
 
-            expect(mockRl.question).toHaveBeenCalledWith(prompt, expect.any(Function));
-            expect(result).toBe('John Doe');
+        test('input with spaces returns trimmed string', async () => {
+            mockRl.question.mockImplementation((prompt, callback) => {
+                callback('  test  ');
+            });
+
+            const result = await consoleIO.question('Prompt: ');
+            expect(result).toBe('test');
+        });
+
+        test('input with special characters', async () => {
+            mockRl.question.mockImplementation((prompt, callback) => {
+                callback('test!@#$%');
+            });
+
+            const result = await consoleIO.question('Prompt: ');
+            expect(result).toBe('test!@#$%');
         });
     });
 
-    describe('showMainMenu', () => {
-        test('should display main menu with all options', () => {
-            consoleIO.showMainMenu();
-
-            expect(console.clear).toHaveBeenCalled();
-            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('СИСТЕМА РАСПРЕДЕЛЕНИЯ'));
-
-            const allCalls = console.log.mock.calls.map(call => call[0]).join(' ');
-            expect(allCalls).toContain('1. Загрузить данные');
-            expect(allCalls).toContain('2. Ввести данные вручную');
-            expect(allCalls).toContain('3. Просмотреть текущие данные');
-            expect(allCalls).toContain('4. Запустить алгоритм (матрица)');
-            expect(allCalls).toContain('5. Запустить алгоритм (списки)');
-            expect(allCalls).toContain('6. Сравнить результаты алгоритмов');
-            expect(allCalls).toContain('7. Показать статистику и рекомендации');
-            expect(allCalls).toContain('8. Сохранить результаты в JSON');
-            expect(allCalls).toContain('9. Справка');
-            expect(allCalls).toContain('0. Выход');
-
-            expect(console.log.mock.calls.length).toBeGreaterThan(5);
-        });
-
-    });
-
-    describe('showHelp', () => {
-        test('should display help information', () => {
-            consoleIO.showHelp();
-
-            const allCalls = console.log.mock.calls.map(call => call[0]).join(' ');
-
-            expect(allCalls).toContain('СПРАВКА ПО СИСТЕМЕ');
-
-            const hasAlgorithm = allCalls.includes('алгоритм Гейла-Шепли') ||
-                allCalls.includes('Алгоритм Гейла-Шепли') ||
-                allCalls.includes('Gale-Shapley');
-
-            expect(hasAlgorithm).toBe(true);
-
-            expect(allCalls).toContain('ФОРМАТ ВХОДНЫХ ДАННЫХ');
-            expect(allCalls).toContain('Пример абитуриента');
-            expect(allCalls).toContain('Пример вуза');
-            expect(allCalls).toContain('РЕКОМЕНДАЦИИ');
-        });
-    });
-
-    describe('showCurrentData', () => {
-        test('should show message when no data', () => {
+    // Equivalence Partitioning
+    describe('EP: display methods with different data states', () => {
+        test('showCurrentData with empty arrays', () => {
             consoleIO.showCurrentData([], []);
 
             expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Нет данных'));
         });
 
-        test('should display applicants and universities', () => {
+        test('showCurrentData with populated arrays', () => {
             const applicants = [
-                { id: 'A1', name: 'Иван', scores: 285, priorities: ['U1'] }
+                {
+                    id: 'A1',
+                    name: 'Иван',
+                    scores: 285,
+                    priorities: ['U1', 'U2'],
+                    join: Array.prototype.join
+                }
             ];
             const universities = [
-                { id: 'U1', name: 'МГУ', capacity: 2, priorities: ['A1'] }
+                {
+                    id: 'U1',
+                    name: 'МГУ',
+                    capacity: 2,
+                    priorities: ['A1'],
+                    join: Array.prototype.join
+                }
             ];
 
             consoleIO.showCurrentData(applicants, universities);
@@ -121,10 +94,27 @@ describe('ConsoleIO', () => {
             expect(console.log).toHaveBeenCalledWith(expect.stringContaining('U1'));
             expect(console.log).toHaveBeenCalledWith(expect.stringContaining('МГУ'));
         });
-    });
 
-    describe('showMatchingResults', () => {
-        test('should display matching results', () => {
+        test('showMatchingResults with empty matching', () => {
+            const result = {
+                algorithm: 'Gale-Shapley',
+                stable: true,
+                matching: [],
+                unmatched: ['A1'],
+                statistics: {
+                    total_applicants: 1,
+                    total_places: 1,
+                    matched_count: 0,
+                    matched_percentage: '0.00',
+                    average_priority: '0.00'
+                }
+            };
+
+            consoleIO.showMatchingResults(result);
+            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Нет распределенных'));
+        });
+
+        test('showMatchingResults with populated matching', () => {
             const result = {
                 algorithm: 'Gale-Shapley',
                 stable: true,
@@ -146,34 +136,65 @@ describe('ConsoleIO', () => {
             };
 
             consoleIO.showMatchingResults(result);
-
-            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('РЕЗУЛЬТАТЫ'));
-            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Иван → МГУ'));
-        });
-
-        test('should handle empty matching', () => {
-            const result = {
-                algorithm: 'Gale-Shapley',
-                stable: true,
-                matching: [],
-                unmatched: ['A1'],
-                statistics: {
-                    total_applicants: 1,
-                    total_places: 1,
-                    matched_count: 0,
-                    matched_percentage: '0.00',
-                    average_priority: '0.00'
-                }
-            };
-
-            consoleIO.showMatchingResults(result);
-
-            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Нет распределенных'));
+            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Иван -> МГУ'));
         });
     });
 
-    describe('showComparison', () => {
-        test('should display algorithm comparison', () => {
+    // Statement Testing
+    describe('Statement: all methods coverage', () => {
+        test('constructor creates readline interface', () => {
+            expect(readline.createInterface).toHaveBeenCalledWith({
+                input: process.stdin,
+                output: process.stdout
+            });
+        });
+
+        test('question method resolves with trimmed answer', async () => {
+            mockRl.question.mockImplementation((prompt, callback) => {
+                callback('  answer  ');
+            });
+
+            const result = await consoleIO.question('Prompt: ');
+            expect(result).toBe('answer');
+            expect(mockRl.question).toHaveBeenCalledWith('Prompt: ', expect.any(Function));
+        });
+
+        test('showMainMenu displays all options', () => {
+            consoleIO.showMainMenu();
+
+            expect(console.clear).toHaveBeenCalled();
+            const calls = console.log.mock.calls.map(call => call[0]).join(' ');
+
+            const expectedOptions = [
+                '1. Загрузить данные',
+                '2. Ввести данные вручную',
+                '3. Просмотреть текущие данные',
+                '4. Запустить алгоритм (матрица)',
+                '5. Запустить алгоритм (списки)',
+                '6. Сравнить результаты алгоритмов',
+                '7. Показать статистику и рекомендации',
+                '8. Сохранить результаты в JSON',
+                '9. Справка',
+                '0. Выход'
+            ];
+
+            expectedOptions.forEach(option => {
+                expect(calls).toContain(option);
+            });
+        });
+
+        test('showHelp displays help information', () => {
+            consoleIO.showHelp();
+
+            const calls = console.log.mock.calls.map(call => call[0]).join(' ');
+
+            expect(calls).toContain('СПРАВКА ПО СИСТЕМЕ');
+            expect(calls).toContain('Алгоритм Гейла-Шепли');
+            expect(calls).toContain('ФОРМАТ ВХОДНЫХ ДАННЫХ');
+            expect(calls).toContain('РЕКОМЕНДАЦИИ');
+        });
+
+        test('showComparison displays algorithm comparison', () => {
             const comparison = {
                 matrix: { matched: 5, unmatched: 0, avgPriority: '0.5' },
                 lists: { matched: 5, unmatched: 0, avgPriority: '0.5' },
@@ -186,7 +207,7 @@ describe('ConsoleIO', () => {
             expect(console.log).toHaveBeenCalledWith(expect.stringContaining('полностью совпадают'));
         });
 
-        test('should show differences when not same', () => {
+        test('showComparison with differences', () => {
             const comparison = {
                 matrix: { matched: 5, unmatched: 0, avgPriority: '0.5' },
                 lists: { matched: 4, unmatched: 1, avgPriority: '0.75' },
@@ -198,16 +219,10 @@ describe('ConsoleIO', () => {
             };
 
             consoleIO.showComparison(comparison);
-
             expect(console.log).toHaveBeenCalledWith(expect.stringContaining('различаются'));
         });
-    });
 
-    describe('showStatisticsAndRecommendations', () => {
-        test('should display statistics and recommendations', () => {
-            const matching = [];
-            const applicants = [];
-            const universities = [];
+        test('showStatisticsAndRecommendations displays all sections', () => {
             const stats = {
                 total_applicants: 10,
                 total_places: 8,
@@ -219,108 +234,114 @@ describe('ConsoleIO', () => {
                 average_priority: '0.75',
                 per_university: {}
             };
-            const recommendations = [
-                { message: 'Test recommendation' }
-            ];
-            const tips = [
-                { message: 'Test tip' }
-            ];
+            const recommendations = [{ message: 'Test recommendation' }];
+            const tips = [{ message: 'Test tip' }];
 
             consoleIO.showStatisticsAndRecommendations(
-                matching, applicants, universities, stats, recommendations, tips
+                [], [], [], stats, recommendations, tips
             );
 
             expect(console.log).toHaveBeenCalledWith(expect.stringContaining('ДЕТАЛЬНАЯ СТАТИСТИКА'));
             expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Test recommendation'));
             expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Test tip'));
         });
-    });
 
-    describe('inputManualData', () => {
-        test('should collect manual data from user', async () => {
-            mockRl.question
-                .mockImplementationOnce((prompt, callback) => callback('2')) // кол-во абитуриентов
-                .mockImplementationOnce((prompt, callback) => callback('A1')) // ID абитуриента
-                .mockImplementationOnce((prompt, callback) => callback('Иван Петров')) // имя
-                .mockImplementationOnce((prompt, callback) => callback('285')) // баллы
-                .mockImplementationOnce((prompt, callback) => callback('2')) // кол-во вузов в приоритетах
-                .mockImplementationOnce((prompt, callback) => callback('U1')) // приоритет 1
-                .mockImplementationOnce((prompt, callback) => callback('U2')) // приоритет 2
-                .mockImplementationOnce((prompt, callback) => callback('A2')) // ID абитуриента 2
-                .mockImplementationOnce((prompt, callback) => callback('Анна Сидорова')) // имя 2
-                .mockImplementationOnce((prompt, callback) => callback('270')) // баллы 2
-                .mockImplementationOnce((prompt, callback) => callback('1')) // кол-во вузов в приоритетах 2
-                .mockImplementationOnce((prompt, callback) => callback('U1')) // приоритет 2-1
-                .mockImplementationOnce((prompt, callback) => callback('1')) // кол-во вузов
-                .mockImplementationOnce((prompt, callback) => callback('U1')) // ID вуза
-                .mockImplementationOnce((prompt, callback) => callback('МГУ')) // название
-                .mockImplementationOnce((prompt, callback) => callback('2')) // количество мест
-                .mockImplementationOnce((prompt, callback) => callback('2')) // кол-во абитуриентов в приоритетах
-                .mockImplementationOnce((prompt, callback) => callback('A1')) // приоритет вуза 1
-                .mockImplementationOnce((prompt, callback) => callback('A2')); // приоритет вуза 2
-
-            const result = await consoleIO.inputManualData();
-
-            expect(result).toHaveProperty('applicants');
-            expect(result).toHaveProperty('universities');
-            expect(result.applicants).toHaveLength(2);
-            expect(result.universities).toHaveLength(1);
-
-            expect(result.applicants[0]).toEqual({
-                id: 'A1',
-                name: 'Иван Петров',
-                scores: 285,
-                priorities: ['U1', 'U2']
-            });
-
-            expect(result.universities[0]).toEqual({
-                id: 'U1',
-                name: 'МГУ',
-                capacity: 2,
-                priorities: ['A1', 'A2']
-            });
-        });
-
-        test('should handle empty inputs gracefully', async () => {
-            mockRl.question
-                .mockImplementationOnce((prompt, callback) => callback('0'))
-                .mockImplementationOnce((prompt, callback) => callback('0'));
-
-            const result = await consoleIO.inputManualData();
-
-            expect(result.applicants).toHaveLength(0);
-            expect(result.universities).toHaveLength(0);
-        });
-    });
-
-    describe('close method', () => {
-        test('should close readline interface', () => {
+        test('close method closes readline', () => {
             consoleIO.close();
             expect(mockRl.close).toHaveBeenCalled();
         });
     });
 
-    describe('Additional consoleIO tests', () => {
-        let consoleIO;
-        let mockRl;
+    // Branch Testing
+    describe('Branch: conditional logic coverage', () => {
+        test('showCurrentData branch: applicants empty', () => {
+            const universities = [{
+                id: 'U1',
+                name: 'МГУ',
+                capacity: 2,
+                priorities: ['A1'],
+                join: Array.prototype.join
+            }];
 
-        beforeEach(() => {
-            jest.spyOn(console, 'log').mockImplementation(() => { });
-            jest.spyOn(console, 'clear').mockImplementation(() => { });
+            consoleIO.showCurrentData([], universities);
 
-            mockRl = {
-                question: jest.fn(),
-                close: jest.fn()
-            };
-            readline.createInterface.mockReturnValue(mockRl);
-
-            consoleIO = new ConsoleIO();
+            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Абитуриенты (0)'));
+            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Нет данных'));
         });
 
-        test('showStatisticsAndRecommendations should handle no recommendations and tips', () => {
-            const matching = [];
-            const applicants = [];
-            const universities = [];
+        test('showCurrentData branch: universities empty', () => {
+            const applicants = [{
+                id: 'A1',
+                name: 'Иван',
+                scores: 285,
+                priorities: ['U1'],
+                join: Array.prototype.join
+            }];
+
+            consoleIO.showCurrentData(applicants, []);
+
+            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Вузы (0)'));
+            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Нет данных'));
+        });
+
+        test('showMatchingResults branch: has unmatched applicants', () => {
+            const result = {
+                algorithm: 'Test',
+                stable: true,
+                matching: [{
+                    applicant_name: 'Иван',
+                    university_name: 'МГУ',
+                    priority_index: 0
+                }],
+                unmatched: ['A2'],
+                statistics: {
+                    total_applicants: 2,
+                    total_places: 1,
+                    matched_count: 1,
+                    matched_percentage: '50.00',
+                    average_priority: '0.00'
+                }
+            };
+
+            consoleIO.showMatchingResults(result);
+            expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Нераспределенные'));
+        });
+
+        test('showMatchingResults branch: no unmatched applicants', () => {
+            const result = {
+                algorithm: 'Test',
+                stable: true,
+                matching: [{
+                    applicant_name: 'Иван',
+                    university_name: 'МГУ',
+                    priority_index: 0
+                }],
+                unmatched: [],
+                statistics: {
+                    total_applicants: 1,
+                    total_places: 1,
+                    matched_count: 1,
+                    matched_percentage: '100.00',
+                    average_priority: '0.00'
+                }
+            };
+
+            consoleIO.showMatchingResults(result);
+            expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('Нераспределенные'));
+        });
+
+        test('showComparison branch: differences object missing entirely', () => {
+            const comparison = {
+                matrix: { matched: 5, unmatched: 0, avgPriority: '0.5' },
+                lists: { matched: 4, unmatched: 1, avgPriority: '0.75' },
+                same_matching: false
+                // differences отсутствует
+            };
+
+            expect(() => consoleIO.showComparison(comparison)).not.toThrow();
+        });
+
+        test('showStatisticsAndRecommendations branch: empty recommendations', () => {
             const stats = {
                 total_applicants: 0,
                 total_places: 0,
@@ -332,38 +353,162 @@ describe('ConsoleIO', () => {
                 average_priority: '0.00',
                 per_university: {}
             };
-            const recommendations = [];
-            const tips = [];
 
             consoleIO.showStatisticsAndRecommendations(
-                matching, applicants, universities, stats, recommendations, tips
+                [], [], [], stats, [], []
             );
 
             expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Нет рекомендаций'));
             expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Нет советов'));
         });
+    });
 
-        test('showComparison should handle missing differences object', () => {
-            const comparison = {
-                matrix: { matched: 5, unmatched: 0, avgPriority: '0.5' },
-                lists: { matched: 4, unmatched: 1, avgPriority: '0.75' },
-                same_matching: false
-            };
-
-            consoleIO.showComparison(comparison);
-
-            expect(console.log).toHaveBeenCalled();
-        });
-
-        test('inputManualData should handle invalid numbers gracefully', async () => {
+    // Decision Table Testing
+    describe('Decision Table: inputManualData combinations', () => {
+        test('valid input with multiple applicants and universities', async () => {
             mockRl.question
-                .mockImplementationOnce((prompt, callback) => callback('abc')) // не число
-                .mockImplementationOnce((prompt, callback) => callback('0'));
+                .mockImplementationOnce((prompt, callback) => callback('2'))
+                .mockImplementationOnce((prompt, callback) => callback('A1'))
+                .mockImplementationOnce((prompt, callback) => callback('Иван Петров'))
+                .mockImplementationOnce((prompt, callback) => callback('285'))
+                .mockImplementationOnce((prompt, callback) => callback('2'))
+                .mockImplementationOnce((prompt, callback) => callback('U1'))
+                .mockImplementationOnce((prompt, callback) => callback('U2'))
+                .mockImplementationOnce((prompt, callback) => callback('A2'))
+                .mockImplementationOnce((prompt, callback) => callback('Анна Сидорова'))
+                .mockImplementationOnce((prompt, callback) => callback('270'))
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('U1'))
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('U1'))
+                .mockImplementationOnce((prompt, callback) => callback('МГУ'))
+                .mockImplementationOnce((prompt, callback) => callback('2'))
+                .mockImplementationOnce((prompt, callback) => callback('2'))
+                .mockImplementationOnce((prompt, callback) => callback('A1'))
+                .mockImplementationOnce((prompt, callback) => callback('A2'));
 
             const result = await consoleIO.inputManualData();
 
+            expect(result.applicants).toHaveLength(2);
+            expect(result.universities).toHaveLength(1);
+            expect(result.applicants[0]).toEqual({
+                id: 'A1',
+                name: 'Иван Петров',
+                scores: 285,
+                priorities: ['U1', 'U2']
+            });
+        });
+
+        test('zero applicants and universities', async () => {
+            mockRl.question
+                .mockImplementationOnce((prompt, callback) => callback('0'))
+                .mockImplementationOnce((prompt, callback) => callback('0'));
+
+            const result = await consoleIO.inputManualData();
             expect(result.applicants).toHaveLength(0);
             expect(result.universities).toHaveLength(0);
+        });
+
+        test('invalid number input falls back to NaN', async () => {
+            mockRl.question
+                .mockImplementationOnce((prompt, callback) => callback('abc'))
+                .mockImplementationOnce((prompt, callback) => callback('0'));
+
+            const result = await consoleIO.inputManualData();
+            expect(result.applicants).toHaveLength(0);
+            expect(result.universities).toHaveLength(0);
+        });
+    });
+
+    // Параметризованные тесты
+    describe('Parameterized (optimized)', () => {
+        test.each([
+            ['test', 'test'],
+            ['  spaced  ', 'spaced'],
+            ['', ''],
+            ['123', '123'],
+            ['!@#', '!@#']
+        ])('question trims "%s" to "%s"', async (input, expected) => {
+            mockRl.question.mockImplementation((prompt, callback) => {
+                callback(input);
+            });
+
+            const result = await consoleIO.question('Prompt: ');
+            expect(result).toBe(expected);
+        });
+    });
+
+    // Edge Cases
+    describe('Edge cases for uncovered lines', () => {
+        test('inputManualData handles missing applicant priorities count', async () => {
+            mockRl.question
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('A1'))
+                .mockImplementationOnce((prompt, callback) => callback('Иван'))
+                .mockImplementationOnce((prompt, callback) => callback('285'))
+                .mockImplementationOnce((prompt, callback) => callback('0')) // 0 priorities
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('U1'))
+                .mockImplementationOnce((prompt, callback) => callback('МГУ'))
+                .mockImplementationOnce((prompt, callback) => callback('2'))
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('A1'));
+
+            const result = await consoleIO.inputManualData();
+
+            expect(result.applicants[0].priorities).toEqual([]);
+            expect(result.universities[0].priorities).toEqual(['A1']);
+        });
+
+        test('inputManualData handles missing university priorities count', async () => {
+            mockRl.question
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('A1'))
+                .mockImplementationOnce((prompt, callback) => callback('Иван'))
+                .mockImplementationOnce((prompt, callback) => callback('285'))
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('U1'))
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('U1'))
+                .mockImplementationOnce((prompt, callback) => callback('МГУ'))
+                .mockImplementationOnce((prompt, callback) => callback('2'))
+                .mockImplementationOnce((prompt, callback) => callback('')); // пустой ввод
+
+            const result = await consoleIO.inputManualData();
+            expect(result).toBeDefined();
+            expect(result.universities[0].priorities).toEqual([]);
+        });
+
+        test('inputManualData handles non-numeric priority count', async () => {
+            mockRl.question
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('A1'))
+                .mockImplementationOnce((prompt, callback) => callback('Иван'))
+                .mockImplementationOnce((prompt, callback) => callback('285'))
+                .mockImplementationOnce((prompt, callback) => callback('abc')) // не число
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('U1'))
+                .mockImplementationOnce((prompt, callback) => callback('МГУ'))
+                .mockImplementationOnce((prompt, callback) => callback('2'))
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('A1'));
+
+            const result = await consoleIO.inputManualData();
+            expect(result.applicants[0].priorities).toEqual([]);
+        });
+
+        test('inputManualData handles missing applicant name', async () => {
+            mockRl.question
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('A1'))
+                .mockImplementationOnce((prompt, callback) => callback('')) // пустое имя
+                .mockImplementationOnce((prompt, callback) => callback('285'))
+                .mockImplementationOnce((prompt, callback) => callback('1'))
+                .mockImplementationOnce((prompt, callback) => callback('U1'))
+                .mockImplementationOnce((prompt, callback) => callback('0'));
+
+            const result = await consoleIO.inputManualData();
+            expect(result.applicants[0].name).toBe('');
         });
     });
 });

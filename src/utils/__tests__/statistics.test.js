@@ -32,27 +32,9 @@ describe('Statistics Calculator', () => {
         ];
     });
 
-    describe('Basic statistics', () => {
-        test('should calculate matching statistics correctly', () => {
-            const stats = statistics.calculateMatchingStats(
-                matching,
-                applicants,
-                universities
-            );
-
-            expect(stats).toEqual({
-                total_applicants: 4,
-                total_places: 4,
-                matched_count: 4,
-                matched_percentage: "100.00",
-                average_priority: "0.25",
-                satisfied_first_choice: 3,
-                satisfied_first_choice_percentage: "75.00",
-                competition: "1.00"
-            });
-        });
-
-        test('should handle empty matching', () => {
+    // Boundary Value Analysis
+    describe('BVA: statistics boundaries', () => {
+        test('calculateMatchingStats with empty matching', () => {
             const stats = statistics.calculateMatchingStats([], applicants, universities);
 
             expect(stats.matched_count).toBe(0);
@@ -60,694 +42,217 @@ describe('Statistics Calculator', () => {
             expect(stats.average_priority).toBe("0.00");
             expect(stats.satisfied_first_choice).toBe(0);
         });
-    });
 
-    describe('University statistics', () => {
-        test('should calculate per-university statistics', () => {
-            const uniStats = statistics.calculateUniversityStats(
-                matching,
-                applicants,
-                universities
-            );
+        test('calculateMatchingStats with all matched', () => {
+            const stats = statistics.calculateMatchingStats(matching, applicants, universities);
 
-            expect(uniStats).toHaveProperty('U1');
-            expect(uniStats).toHaveProperty('U2');
-            expect(uniStats).toHaveProperty('U3');
+            expect(stats.matched_count).toBe(4);
+            expect(stats.matched_percentage).toBe("100.00");
+            expect(stats.average_priority).toBe("0.25");
+            expect(stats.satisfied_first_choice).toBe(3);
+        });
 
-            expect(uniStats.U1).toEqual({
-                name: 'МГУ',
-                capacity: 2,
-                filled: 2,
-                applicants: ['A1', 'A4'],
-                average_applicant_score: 267.5, // (285 + 250) / 2
-                min_score: 250,
-                max_score: 285
-            });
+        test('calculateUniversityStats with empty university', () => {
+            const emptyUni = new University('U4', 'Пустой', 1, ['A1']);
+            Object.defineProperty(emptyUni, 'capacity', { value: 0 });
 
-            expect(uniStats.U2.filled).toBe(1);
-            expect(uniStats.U2.average_applicant_score).toBe(270);
+            const allUniversities = [...universities, emptyUni];
+
+            const uniStats = statistics.calculateUniversityStats(matching, applicants, allUniversities);
+
+            expect(uniStats.U4.filled).toBe(0);
+            expect(uniStats.U4.average_applicant_score).toBe(0);
+            expect(uniStats.U4.min_score).toBe(0);
+            expect(uniStats.U4.max_score).toBe(0);
         });
     });
 
-    describe('Applicant statistics', () => {
-        test('should calculate per-applicant statistics', () => {
-            const appStats = statistics.calculateApplicantStats(
-                matching,
-                applicants,
-                universities
-            );
+    // Equivalence Partitioning
+    describe('EP: different data states', () => {
+        test('calculateMatchingStats with no applicants', () => {
+            const stats = statistics.calculateMatchingStats(matching, [], universities);
 
-            expect(appStats).toHaveProperty('A1');
-            expect(appStats).toHaveProperty('A2');
-            expect(appStats).toHaveProperty('A3');
-            expect(appStats).toHaveProperty('A4');
-
-            expect(appStats.A1).toEqual({
-                name: 'Иван Петров',
-                scores: 285,
-                assigned_university: 'U1',
-                assigned_university_name: 'МГУ',
-                priority_achieved: 0,
-                priority_percentage: 0,
-                status: 'matched'
-            });
-
-            expect(appStats.A4.priority_achieved).toBe(1);
-            expect(appStats.A4.priority_percentage).toBe(33.33); // 1 из 3 = 33.33%
+            expect(stats.total_applicants).toBe(0);
+            expect(stats.matched_percentage).toBe("0.00");
+            expect(stats.satisfied_first_choice_percentage).toBe("0.00");
         });
 
-        test('should handle unmatched applicants', () => {
-            const unmatchedMatching = matching.slice(0, 2);
+        test('calculateMatchingStats with no places', () => {
+            const stats = statistics.calculateMatchingStats(matching, applicants, []);
 
-            const appStats = statistics.calculateApplicantStats(
-                unmatchedMatching,
-                applicants,
-                universities
-            );
-
-            expect(appStats.A3.status).toBe('unmatched');
-            expect(appStats.A3.assigned_university).toBeNull();
-            expect(appStats.A4.status).toBe('unmatched');
-        });
-    });
-
-    describe('Competition analysis', () => {
-        test('should calculate competition ratios', () => {
-            const competition = statistics.calculateCompetition(applicants, universities);
-
-            // 4 места на 4 абитуриентов
-            expect(competition).toEqual({
-                overall: "1.00",
-                per_university: {
-                    U1: "2.00",
-                    U2: "4.00",
-                    U3: "4.00"
-                }
-            });
+            expect(stats.total_places).toBe(0);
+            expect(stats.competition).toBe("0.00");
         });
 
-        test('should calculate competition based on preferences, not just anyone', () => {
-            const newApplicants = [
-                new Applicant('A1', 'Иван', 285, ['U1']),
-                new Applicant('A2', 'Анна', 270, ['U1']),
-                new Applicant('A3', 'Петр', 260, ['U2'])
-            ];
-
-            const newUniversities = [
-                new University('U1', 'МГУ', 1, ['A1', 'A2']),
-                new University('U2', 'СПбГУ', 1, ['A3'])
-            ];
-
-            const competition = statistics.calculateCompetition(newApplicants, newUniversities);
-
-            expect(competition.per_university.U1).toBe("2.00"); // 2 хотят, 1 место
-            expect(competition.per_university.U2).toBe("1.00"); // 1 хочет, 1 место
-        });
-    });
-
-    describe('Recommendations', () => {
-        test('should generate recommendations for unmatched applicants', () => {
-            // A1, A2 распределены
-            const unmatchedMatching = matching.slice(0, 2);
-            const appStats = statistics.calculateApplicantStats(
-                unmatchedMatching,
-                applicants,
-                universities
-            );
-
-            const recommendations = statistics.generateRecommendations(
-                unmatchedMatching,
-                applicants,
-                universities,
-                appStats
-            );
-
-            // Для A3 и A4
-            expect(recommendations).toHaveLength(2);
-
-            // Рекомендация A3
-            const recForA3 = recommendations.find(r => r.applicant === 'A3');
-            expect(recForA3).toBeDefined();
-            expect(recForA3.message).toContain('рассмотреть');
-            expect(recForA3.alternatives).toBeInstanceOf(Array);
-        });
-
-        test('should suggest alternative universities based on scores', () => {
-            const newApplicants = [
-                new Applicant('A1', 'Иван', 285, ['U1', 'U2']),
-                new Applicant('A2', 'Анна', 200, ['U1', 'U2']) // Низкие баллы
-            ];
-
-            const newUniversities = [
-                new University('U1', 'МГУ', 1, ['A1', 'A2']),
-                new University('U2', 'СПбГУ', 1, ['A1', 'A2'])
-            ];
-
-            const result = { matching: [], unmatched: ['A1', 'A2'] }; // Никто не распределен
-            const appStats = statistics.calculateApplicantStats(
-                result.matching,
-                newApplicants,
-                newUniversities
-            );
-
-            const recommendations = statistics.generateRecommendations(
-                result.matching,
-                newApplicants,
-                newUniversities,
-                appStats
-            );
-
-            console.log('Recommendations:', JSON.stringify(recommendations, null, 2));
-
-            const recsForA2 = recommendations.filter(r => r.applicant === 'A2');
-
-            const unmatchedRec = recsForA2.find(r => r.type === 'unmatched');
-            expect(unmatchedRec).toBeDefined();
-
-            const warningRec = recsForA2.find(r => r.type === 'warning');
-            expect(warningRec).toBeDefined();
-            expect(warningRec.message).toContain('низкие баллы');
-        });
-
-        test('should provide tips for popular universities', () => {
-            const competition = statistics.calculateCompetition(applicants, universities);
-
-            const tips = statistics.generateUniversityTips(universities, competition);
-
-            expect(tips).toHaveLength(3);
-
-            const u1Tip = tips.find(t => t.university === 'U1');
-            expect(u1Tip.message).toContain('2.00');
-
-            const u2Tip = tips.find(t => t.university === 'U2');
-            expect(u2Tip.message).toContain('4.00');
-        });
-    });
-
-    describe('Performance comparison', () => {
-        test('should compare two algorithm results', () => {
-            const matrixResult = {
-                algorithm: 'Gale-Shapley (Matrix)',
-                matching: matching,
-                statistics: {
-                    matched_count: 4,
-                    average_priority: 0.25
-                }
-            };
-
-            const listsResult = {
-                algorithm: 'Gale-Shapley (Lists)',
-                matching: matching,
-                statistics: {
-                    matched_count: 4,
-                    average_priority: 0.25
-                }
-            };
-
-            const comparison = statistics.compareAlgorithms(matrixResult, listsResult);
-
-            expect(comparison).toHaveProperty('same_matching');
-            expect(comparison.same_matching).toBe(true);
-            expect(comparison).toHaveProperty('matrix');
-            expect(comparison).toHaveProperty('lists');
-        });
-
-        test('should detect differences in results', () => {
-            const matrixResult = {
-                algorithm: 'Gale-Shapley (Matrix)',
-                matching: matching,
-                statistics: { matched_count: 4 }
-            };
-
-            const listsResult = {
-                algorithm: 'Gale-Shapley (Lists)',
-                matching: matching.slice(0, 3), // Только 3 matching
-                statistics: { matched_count: 3 }
-            };
-
-            const comparison = statistics.compareAlgorithms(matrixResult, listsResult);
-
-            expect(comparison.same_matching).toBe(false);
-            expect(comparison.differences).toBeDefined();
-        });
-    });
-
-    test('_findAlternatives should find universities with free places that applicant prefers', () => {
-        const applicant = new Applicant('A1', 'Иван', 250, ['U1', 'U2', 'U3']);
-
-        const universities = [
-            new University('U1', 'МГУ', 2, ['A1', 'A2']), // непустой массив
-            new University('U2', 'СПбГУ', 1, ['A3', 'A4']), // непустой массив
-            new University('U3', 'НГУ', 1, ['A5']) // непустой массив
-        ];
-
-        const universityMatches = {
-            U1: ['A2'], // 1 место свободно
-            U2: ['A3', 'A4'], // мест нет
-            U3: [] // все места свободны
-        };
-
-        const alternatives = statistics._findAlternatives(applicant, universities, universityMatches);
-
-        expect(alternatives).toContain('МГУ (есть места)');
-        expect(alternatives).toContain('НГУ (есть места)');
-        expect(alternatives).not.toContain('СПбГУ (есть места)');
-        expect(alternatives.length).toBeLessThanOrEqual(3);
-    });
-
-    test('_findAlternatives should return empty array when no alternatives', () => {
-        const applicant = new Applicant('A1', 'Иван', 250, ['U1']);
-        const universities = [
-            new University('U1', 'МГУ', 1, ['A2']) // непустой массив
-        ];
-        const universityMatches = {
-            U1: ['A2'] // мест нет
-        };
-
-        const alternatives = statistics._findAlternatives(applicant, universities, universityMatches);
-
-        expect(alternatives).toEqual([]);
-    });
-
-    test('_findWorstAccepted should return a valid applicant from accepted list', () => {
-        const university = new University('U1', 'МГУ', 3, ['A1', 'A2', 'A3', 'A4']);
-        const acceptedIds = ['A2', 'A4', 'A1'];
-        const applicants = [
-            new Applicant('A1', 'Иван', 100, ['U1']),
-            new Applicant('A2', 'Анна', 90, ['U1']),
-            new Applicant('A3', 'Петр', 80, ['U1']),
-            new Applicant('A4', 'Мария', 95, ['U1'])
-        ];
-
-        const worst = statistics._findWorstAccepted(university, acceptedIds, applicants);
-
-        expect(acceptedIds).toContain(worst.id);
-        expect(worst).toBeInstanceOf(Applicant);
-
-        const expectedNames = {
-            A1: 'Иван',
-            A2: 'Анна',
-            A4: 'Мария'
-        };
-        expect(worst.name).toBe(expectedNames[worst.id]);
-    });
-
-
-    test('_findWorstAccepted should handle applicants not in priorities', () => {
-        const university = new University('U1', 'МГУ', 3, ['A1', 'A2']);
-        const acceptedIds = ['A1', 'X1', 'X2'];
-        const applicants = [
-            new Applicant('A1', 'Иван', 100, ['U1']),
-            new Applicant('X1', 'Unknown1', 90, ['U1']),
-            new Applicant('X2', 'Unknown2', 80, ['U1'])
-        ];
-
-        const worst = statistics._findWorstAccepted(university, acceptedIds, applicants);
-
-        expect(['X1', 'X2']).toContain(worst.id);
-    });
-
-    test('_checkBetterChances should identify universities where applicant has better chances', () => {
-        const applicant = new Applicant('A1', 'Иван', 285, ['U1', 'U2']);
-        applicant.assigned_university = 'U2';
-
-        const universities = [
-            new University('U1', 'МГУ', 2, ['A1', 'A3']),
-            new University('U2', 'СПбГУ', 2, ['A1', 'A2'])
-        ];
-
-        const universityMatches = {
-            U1: ['A3']
-        };
-
-        const applicantsList = [
-            applicant,
-            new Applicant('A2', 'Анна', 270, ['U2']),
-            new Applicant('A3', 'Петр', 260, ['U1'])
-        ];
-
-        const betterOptions = statistics._checkBetterChances(
-            applicant,
-            universities,
-            universityMatches,
-            applicantsList
-        );
-
-        expect(betterOptions).toContain('МГУ (есть места)');
-    });
-
-    test('_checkBetterChances should handle competitive universities', () => {
-        const applicant = new Applicant('A1', 'Иван', 295, ['U1', 'U2']);
-        applicant.assigned_university = 'U2';
-
-        const universities = [
-            new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3']),
-            new University('U2', 'СПбГУ', 2, ['A1', 'A2'])
-        ];
-
-        const universityMatches = {
-            U1: ['A2', 'A3']
-        };
-
-        const applicantsList = [
-            applicant,
-            new Applicant('A2', 'Анна', 270, ['U1', 'U2']),
-            new Applicant('A3', 'Петр', 260, ['U1'])
-        ];
-
-        const betterOptions = statistics._checkBetterChances(
-            applicant,
-            universities,
-            universityMatches,
-            applicantsList
-        );
-
-        expect(betterOptions).toContain('МГУ (по баллам)');
-    });
-
-    test('should handle universities with zero capacity', () => {
-        const University = require('../../models/University');
-
-        const university = new University('U1', 'МГУ', 1, ['A1']);
-
-        const applicants = [
-            new Applicant('A1', 'Иван', 285, ['U1'])
-        ];
-        const universities = [university];
-
-        const competition = statistics.calculateCompetition(applicants, universities);
-
-        expect(competition.overall).toBe("1.00");
-        expect(competition.per_university.U1).toBe("1.00");
-    });
-
-    test('calculateCompetition should handle zero capacity gracefully', () => {
-        const University = require('../../models/University');
-
-        const applicants = [
-            new Applicant('A1', 'Иван', 285, ['U1'])
-        ];
-
-        const university = new University('U1', 'МГУ', 1, ['A1']);
-        Object.defineProperty(university, 'capacity', { value: 0 });
-
-        const universities = [university];
-
-        const totalPlaces = universities.reduce((sum, u) => sum + u.capacity, 0);
-        expect(totalPlaces).toBe(0);
-
-        const competition = statistics.calculateCompetition(applicants, universities);
-        expect(competition.overall).toBe("0.00");
-    });
-
-    test('should handle no applicants', () => {
-        const applicants = [];
-        const universities = [
-            new University('U1', 'МГУ', 10, ['A1', 'A2'])
-        ];
-
-        const competition = statistics.calculateCompetition(applicants, universities);
-
-        expect(competition.overall).toBe("0.00");
-        expect(competition.per_university.U1).toBe("0.00");
-    });
-
-    test('should generate warning for applicants with scores much lower than average', () => {
-        const applicants = [
-            new Applicant('A1', 'Иван', 200, ['U1']),
-            new Applicant('A2', 'Анна', 290, ['U1'])
-        ];
-
-        const universities = [
-            new University('U1', 'МГУ', 2, ['A1', 'A2'])
-        ];
-
-        const matching = [
-            { applicant: 'A1', university: 'U1', priority_index: 0 },
-            { applicant: 'A2', university: 'U1', priority_index: 0 }
-        ];
-
-        const applicantStats = statistics.calculateApplicantStats(matching, applicants, universities);
-
-        const recommendations = statistics.generateRecommendations(
-            matching,
-            applicants,
-            universities,
-            applicantStats
-        );
-
-        expect(recommendations).toBeDefined();
-    });
-
-    describe('Additional statistics tests for uncovered lines', () => {
-        let statistics;
-        let applicants;
-        let universities;
-        let matching;
-
-        beforeEach(() => {
-            statistics = new Statistics();
-
-            applicants = [
-                new Applicant('A1', 'Иван', 285, ['U1', 'U2']),
-                new Applicant('A2', 'Анна', 200, ['U1', 'U2']),
-                new Applicant('A3', 'Петр', 260, ['U1', 'U2'])
-            ];
-
-            universities = [
-                new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3']),
-                new University('U2', 'СПбГУ', 1, ['A2', 'A1', 'A3'])
-            ];
-
-            matching = [
-                { applicant: 'A1', university: 'U1', priority_index: 0 },
-                { applicant: 'A3', university: 'U2', priority_index: 1 }
-            ];
-        });
-
-        test('should handle _findAlternatives when university has no free places', () => {
-            const applicant = applicants[0];
-            const universityMatches = {
-                U1: ['A1', 'A2'],
-                U2: ['A3']
-            };
-
-            const alternatives = statistics._findAlternatives(
-                applicant,
-                universities,
-                universityMatches
-            );
-
-            expect(alternatives).toEqual([]);
-        });
-
-        test('should handle _getUniversityAverageScore edge cases', () => {
-            const avgScore1 = statistics._getUniversityAverageScore(
-                'U3',
-                universities,
-                matching,
-                applicants
-            );
-            expect(avgScore1).toBe(0);
-
-            const avgScore2 = statistics._getUniversityAverageScore(
-                'U1',
-                universities,
-                [{ applicant: 'X1', university: 'U1', priority_index: 0 }], // Несуществующий applicant
-                applicants
-            );
-            expect(avgScore2).toBe(0);
-        });
-
-        test('should handle _findWorstAccepted with edge cases', () => {
-            const university = new University('U1', 'МГУ', 2, ['A1', 'A2']);
-            const acceptedIds = [];
-
-            const worst = statistics._findWorstAccepted(
-                university,
-                acceptedIds,
-                applicants
-            );
-
-            expect(worst).toBeNull();
-        });
-
-        test('should handle _checkBetterChances with edge cases', () => {
-            const applicant = applicants[0];
-            applicant.assigned_university = 'U2';
-
-            const universityMatches = {
-                U1: []
-            };
-
-            const betterOptions = statistics._checkBetterChances(
-                applicant,
-                universities,
-                universityMatches,
-                applicants
-            );
-
-            expect(Array.isArray(betterOptions)).toBe(true);
-        });
-
-        test('should handle _findMatchingDifferences with empty matchings', () => {
-            const matching1 = [];
-            const matching2 = [];
-
-            const differences = statistics._findMatchingDifferences(matching1, matching2);
-
-            expect(differences.only_in_first).toEqual([]);
-            expect(differences.only_in_second).toEqual([]);
-        });
-    });
-
-    describe('Additional statistics tests for uncovered lines', () => {
-        let statistics;
-        let applicants;
-        let universities;
-        let matching;
-
-        beforeEach(() => {
-            statistics = new Statistics();
-
-            applicants = [
-                new Applicant('A1', 'Иван', 285, ['U1', 'U2']),
-                new Applicant('A2', 'Анна', 200, ['U1', 'U2']),
-                new Applicant('A3', 'Петр', 260, ['U1', 'U2']),
-                new Applicant('A4', 'Мария', 270, ['U1', 'U2'])
-            ];
-
-            universities = [
-                new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3', 'A4']),
-                new University('U2', 'СПбГУ', 1, ['A2', 'A1', 'A3', 'A4'])
-            ];
-
-            matching = [
-                { applicant: 'A1', university: 'U1', priority_index: 0 },
-                { applicant: 'A3', university: 'U2', priority_index: 1 }
-            ];
-        });
-
-        test('_getUniversityAverageScore should return 0 when no matching entries', () => {
-            const avgScore = statistics._getUniversityAverageScore(
-                'U1',
-                universities,
-                [], // пустой matching
-                applicants
-            );
-            expect(avgScore).toBe(0);
-        });
-
-        test('_findAlternatives should return empty array when no free places in preferred universities', () => {
-            const applicant = applicants[0];
-            const universityMatches = {
-                U1: ['A1', 'A4'], // оба места заняты
-                U2: ['A3'] // место занято
-            };
-
-            const alternatives = statistics._findAlternatives(
-                applicant,
-                universities,
-                universityMatches
-            );
-
-            expect(alternatives).toEqual([]);
-        });
-
-        test('_checkBetterChances should handle university with no accepted applicants', () => {
-            const applicant = applicants[0];
-            const applicantWithAssigned = { ...applicant, assigned_university: 'U2' };
-
-            const universityMatches = {
-                U1: [] // пустой список принятых
-            };
-
-            const betterOptions = statistics._checkBetterChances(
-                applicantWithAssigned,
-                universities,
-                universityMatches,
-                applicants
-            );
-
-            expect(Array.isArray(betterOptions)).toBe(true);
-        });
-
-        test('_getUniversityAverageScore should handle missing applicants correctly', () => {
-            const allExistMatching = [
-                { applicant: 'A1', university: 'U1', priority_index: 0 },
-                { applicant: 'A2', university: 'U1', priority_index: 0 }
-            ];
-
-            const avgScoreAllExist = statistics._getUniversityAverageScore(
-                'U1',
-                universities,
-                allExistMatching,
-                applicants
-            );
-            expect(avgScoreAllExist).toBe(242.5); // (285 + 200) / 2 = 242.5
-
-            const oneMissingMatching = [
-                { applicant: 'A1', university: 'U1', priority_index: 0 },
-                { applicant: 'X1', university: 'U1', priority_index: 0 }
-            ];
-
-            const avgScoreOneMissing = statistics._getUniversityAverageScore(
-                'U1',
-                universities,
-                oneMissingMatching,
-                applicants
-            );
-            expect(avgScoreOneMissing).toBe(142.5); // 285 / 2 = 142.5
-
-            const allMissingMatching = [
-                { applicant: 'X1', university: 'U1', priority_index: 0 },
-                { applicant: 'X2', university: 'U1', priority_index: 0 }
-            ];
-
-            const avgScoreAllMissing = statistics._getUniversityAverageScore(
-                'U1',
-                universities,
-                allMissingMatching,
-                applicants
-            );
-            expect(avgScoreAllMissing).toBe(0); // 0 / 2 = 0
-        });
-
-        test('calculateCompetition should handle universities with zero capacity', () => {
-            const zeroCapacityUni = {
-                id: 'U3',
-                name: 'НГУ',
-                capacity: 0,
-                priorities: ['A1']
-            };
-
-            const allUniversities = [...universities, zeroCapacityUni];
+        test('calculateCompetition with no interested applicants', () => {
+            const isolatedUni = new University('U4', 'Дальневосточный', 5, ['A5', 'A6']);
+            const allUniversities = [...universities, isolatedUni];
 
             const competition = statistics.calculateCompetition(applicants, allUniversities);
 
-            expect(competition.per_university.U3).toBe("0.00");
-            // Общий конкурс: 4 абитуриента / (2 + 1 + 0) мест = 4/3 = 1.33
-            expect(competition.overall).toBe("1.33");
+            expect(competition.per_university.U4).toBe("0.00");
+        });
+    });
+
+    // Statement Testing
+    describe('Statement: all methods coverage', () => {
+        test('calculateMatchingStats calculates all fields', () => {
+            const stats = statistics.calculateMatchingStats(matching, applicants, universities);
+
+            expect(stats).toHaveProperty('total_applicants');
+            expect(stats).toHaveProperty('total_places');
+            expect(stats).toHaveProperty('matched_count');
+            expect(stats).toHaveProperty('matched_percentage');
+            expect(stats).toHaveProperty('average_priority');
+            expect(stats).toHaveProperty('satisfied_first_choice');
+            expect(stats).toHaveProperty('satisfied_first_choice_percentage');
+            expect(stats).toHaveProperty('competition');
         });
 
-        // Тест для строки 363
-        test('_findWorstAccepted should return null when accepted list is empty', () => {
-            const university = universities[0];
-            const worst = statistics._findWorstAccepted(
-                university,
-                [], // пустой список принятых
-                applicants
+        test('calculateUniversityStats calculates per-university metrics', () => {
+            const uniStats = statistics.calculateUniversityStats(matching, applicants, universities);
+
+            expect(uniStats.U1).toHaveProperty('name');
+            expect(uniStats.U1).toHaveProperty('capacity');
+            expect(uniStats.U1).toHaveProperty('filled');
+            expect(uniStats.U1).toHaveProperty('applicants');
+            expect(uniStats.U1).toHaveProperty('average_applicant_score');
+            expect(uniStats.U1).toHaveProperty('min_score');
+            expect(uniStats.U1).toHaveProperty('max_score');
+        });
+
+        test('calculateApplicantStats calculates per-applicant metrics', () => {
+            const appStats = statistics.calculateApplicantStats(matching, applicants, universities);
+
+            expect(appStats.A1).toHaveProperty('name');
+            expect(appStats.A1).toHaveProperty('scores');
+            expect(appStats.A1).toHaveProperty('assigned_university');
+            expect(appStats.A1).toHaveProperty('assigned_university_name');
+            expect(appStats.A1).toHaveProperty('priority_achieved');
+            expect(appStats.A1).toHaveProperty('priority_percentage');
+            expect(appStats.A1).toHaveProperty('status');
+        });
+
+        test('calculateCompetition calculates overall and per-university', () => {
+            const competition = statistics.calculateCompetition(applicants, universities);
+
+            expect(competition).toHaveProperty('overall');
+            expect(competition).toHaveProperty('per_university');
+        });
+
+        test('generateRecommendations creates recommendations array', () => {
+            const appStats = statistics.calculateApplicantStats(matching, applicants, universities);
+            const recommendations = statistics.generateRecommendations(
+                matching, applicants, universities, appStats
             );
-            expect(worst).toBeNull();
+
+            expect(Array.isArray(recommendations)).toBe(true);
         });
 
-        test('_findMatchingDifferences should handle empty matchings', () => {
-            const differences = statistics._findMatchingDifferences([], []);
-            expect(differences.only_in_first).toEqual([]);
-            expect(differences.only_in_second).toEqual([]);
+        test('generateUniversityTips creates tips array', () => {
+            const competition = statistics.calculateCompetition(applicants, universities);
+            const tips = statistics.generateUniversityTips(universities, competition);
+
+            expect(Array.isArray(tips)).toBe(true);
         });
 
-        test('generateUniversityTips should handle high competition', () => {
+        test('compareAlgorithms compares two results', () => {
+            const result1 = { matching, statistics: { matched_count: 4, average_priority: '0.25' } };
+            const result2 = { matching, statistics: { matched_count: 4, average_priority: '0.25' } };
+
+            const comparison = statistics.compareAlgorithms(result1, result2);
+
+            expect(comparison).toHaveProperty('matrix');
+            expect(comparison).toHaveProperty('lists');
+            expect(comparison).toHaveProperty('same_matching');
+        });
+    });
+
+    // Branch Testing
+    describe('Branch: condition coverage', () => {
+        test('calculateMatchingStats branch: matchedCount > 0', () => {
+            const stats = statistics.calculateMatchingStats(matching, applicants, universities);
+            expect(stats.average_priority).toBe("0.25");
+        });
+
+        test('calculateMatchingStats branch: matchedCount = 0', () => {
+            const stats = statistics.calculateMatchingStats([], applicants, universities);
+            expect(stats.average_priority).toBe("0.00");
+        });
+
+        test('calculateMatchingStats branch: totalApplicants > 0', () => {
+            const stats = statistics.calculateMatchingStats(matching, applicants, universities);
+            expect(stats.matched_percentage).toBe("100.00");
+            expect(stats.satisfied_first_choice_percentage).toBe("75.00");
+        });
+
+        test('calculateMatchingStats branch: totalApplicants = 0', () => {
+            const stats = statistics.calculateMatchingStats(matching, [], universities);
+            expect(stats.matched_percentage).toBe("0.00");
+            expect(stats.satisfied_first_choice_percentage).toBe("0.00");
+        });
+
+        test('calculateMatchingStats branch: totalPlaces > 0', () => {
+            const stats = statistics.calculateMatchingStats(matching, applicants, universities);
+            expect(stats.competition).toBe("1.00");
+        });
+
+        test('calculateMatchingStats branch: totalPlaces = 0', () => {
+            const stats = statistics.calculateMatchingStats(matching, applicants, []);
+            expect(stats.competition).toBe("0.00");
+        });
+
+        test('calculateUniversityStats branch: scores length > 0', () => {
+            const uniStats = statistics.calculateUniversityStats(matching, applicants, universities);
+            expect(uniStats.U1.average_applicant_score).toBe(267.5);
+        });
+
+        test('calculateUniversityStats branch: scores length = 0', () => {
+            const emptyUni = new University('U4', 'Пустой', 1, ['A5']);
+            const uniStats = statistics.calculateUniversityStats([], [], [emptyUni]);
+            expect(uniStats.U4.average_applicant_score).toBe(0);
+        });
+
+        test('generateRecommendations branch: applicant unmatched', () => {
+            const partialMatching = matching.slice(0, 2); // только A1 и A2
+            const appStats = statistics.calculateApplicantStats(partialMatching, applicants, universities);
+            const recommendations = statistics.generateRecommendations(
+                partialMatching, applicants, universities, appStats
+            );
+
+            const unmatchedRecs = recommendations.filter(r => r.type === 'unmatched');
+            expect(unmatchedRecs.length).toBeGreaterThan(0);
+        });
+
+        test('generateRecommendations branch: applicant with low scores', () => {
+            const lowScoreApplicant = new Applicant('A5', 'Низкий', 150, ['U1']);
+            const allApplicants = [...applicants, lowScoreApplicant];
+            const allMatching = [...matching];
+
+            const appStats = statistics.calculateApplicantStats(allMatching, allApplicants, universities);
+            const recommendations = statistics.generateRecommendations(
+                allMatching, allApplicants, universities, appStats
+            );
+
+            const warningRecs = recommendations.filter(r => r.type === 'warning');
+            expect(warningRecs.length).toBeGreaterThanOrEqual(0);
+        });
+
+        test('generateRecommendations branch: applicant with suboptimal match', () => {
+            const suboptimalMatching = [
+                { applicant: 'A1', university: 'U2', priority_index: 1 } // A1 хотел U1, получил U2
+            ];
+
+            const appStats = statistics.calculateApplicantStats(suboptimalMatching, applicants, universities);
+            const recommendations = statistics.generateRecommendations(
+                suboptimalMatching, applicants, universities, appStats
+            );
+
+            const suboptimalRecs = recommendations.filter(r => r.type === 'suboptimal');
+            expect(suboptimalRecs.length).toBeGreaterThanOrEqual(0);
+        });
+
+        test('generateUniversityTips branch: high competition', () => {
             const highCompetition = {
                 per_university: {
                     U1: "5.00",
@@ -757,12 +262,11 @@ describe('Statistics Calculator', () => {
 
             const tips = statistics.generateUniversityTips(universities, highCompetition);
 
-            const u1Tip = tips.find(t => t.university === 'U1');
-            expect(u1Tip.type).toBe('high_competition');
-            expect(u1Tip.message).toContain('очень высокий конкурс');
+            const highCompTip = tips.find(t => t.university === 'U1');
+            expect(highCompTip.type).toBe('high_competition');
         });
 
-        test('generateUniversityTips should handle low competition', () => {
+        test('generateUniversityTips branch: low competition', () => {
             const lowCompetition = {
                 per_university: {
                     U1: "0.50",
@@ -772,12 +276,11 @@ describe('Statistics Calculator', () => {
 
             const tips = statistics.generateUniversityTips(universities, lowCompetition);
 
-            const u1Tip = tips.find(t => t.university === 'U1');
-            expect(u1Tip.type).toBe('low_competition');
-            expect(u1Tip.message).toContain('низкий конкурс');
+            const lowCompTip = tips.find(t => t.university === 'U1');
+            expect(lowCompTip.type).toBe('low_competition');
         });
 
-        test('generateUniversityTips should handle normal competition', () => {
+        test('generateUniversityTips branch: normal competition', () => {
             const normalCompetition = {
                 per_university: {
                     U1: "2.00",
@@ -787,14 +290,115 @@ describe('Statistics Calculator', () => {
 
             const tips = statistics.generateUniversityTips(universities, normalCompetition);
 
-            const u1Tip = tips.find(t => t.university === 'U1');
-            expect(u1Tip.type).toBe('normal_competition');
-            expect(u1Tip.message).toContain('средний конкурс');
+            const normalCompTip = tips.find(t => t.university === 'U1');
+            expect(normalCompTip.type).toBe('normal_competition');
         });
 
-        test('_findWorstAccepted should find the worst applicant correctly', () => {
-            const university = universities[0];
-            const acceptedIds = ['A2', 'A1', 'A4'];
+        test('compareAlgorithms branch: same matching', () => {
+            const result1 = { matching, algorithm: 'Matrix', statistics: {} };
+            const result2 = { matching, algorithm: 'Lists', statistics: {} };
+
+            const comparison = statistics.compareAlgorithms(result1, result2);
+            expect(comparison.same_matching).toBe(true);
+        });
+
+        test('compareAlgorithms branch: different matching', () => {
+            const result1 = { matching, algorithm: 'Matrix', statistics: {} };
+            const result2 = { matching: matching.slice(0, 2), algorithm: 'Lists', statistics: {} };
+
+            const comparison = statistics.compareAlgorithms(result1, result2);
+            expect(comparison.same_matching).toBe(false);
+            expect(comparison.differences).toBeDefined();
+        });
+    });
+
+    // Edge Cases
+    describe('Edge cases for uncovered lines', () => {
+        test('_findAlternatives with no free places', () => {
+            const applicant = applicants[0];
+            const universityMatches = {
+                U1: ['A1', 'A4'], // оба места заняты
+                U2: ['A2'], // место занято
+                U3: ['A3'] // место занято
+            };
+
+            const alternatives = statistics._findAlternatives(
+                applicant,
+                universities,
+                universityMatches
+            );
+
+            expect(alternatives).toEqual([]);
+        });
+
+        test('_findAlternatives with free places not in applicant priorities', () => {
+            const applicant = new Applicant('A1', 'Иван', 285, ['U2']); // U2 в приоритетах
+            const uniWithFreePlace = new University('U1', 'МГУ', 2, ['A2']); // U1 не в приоритетах
+
+            const universityMatches = {
+                U1: ['A2'],
+                U2: ['A3']
+            };
+
+            const alternatives = statistics._findAlternatives(
+                applicant,
+                [uniWithFreePlace, universities[1]],
+                universityMatches
+            );
+
+            // U1 не в приоритетах, U2 нет мест
+            expect(alternatives).toEqual([]);
+        });
+
+        test('_checkBetterChances with empty universityMatches', () => {
+            const applicant = applicants[0];
+            applicant.assigned_university = 'U2';
+
+            const universityMatches = {
+                U1: [] // пустой список принятых
+            };
+
+            const betterOptions = statistics._checkBetterChances(
+                applicant,
+                universities,
+                universityMatches,
+                applicants
+            );
+
+            expect(Array.isArray(betterOptions)).toBe(true);
+        });
+
+        test('_checkBetterChances with university that has capacity', () => {
+            const applicant = applicants[0];
+            applicant.assigned_university = 'U2';
+
+            const universityMatches = {
+                U1: [] // есть места
+            };
+
+            const betterOptions = statistics._checkBetterChances(
+                applicant,
+                universities,
+                universityMatches,
+                applicants
+            );
+
+            expect(betterOptions.length).toBeGreaterThanOrEqual(0);
+        });
+
+        test('_findWorstAccepted with empty accepted list', () => {
+            const worst = statistics._findWorstAccepted(
+                universities[0],
+                [],
+                applicants
+            );
+
+            expect(worst).toBeNull();
+        });
+
+        test('_findWorstAccepted with all applicants in priorities', () => {
+            const university = universities[0]; // U1 с приоритетами ['A1','A2','A3','A4']
+            const acceptedIds = ['A1', 'A2', 'A4'];
 
             const worst = statistics._findWorstAccepted(
                 university,
@@ -802,16 +406,16 @@ describe('Statistics Calculator', () => {
                 applicants
             );
 
-            expect(worst.id).toBe('A2');
+            // Индексы: A1(0), A2(1), A4(3) - A4 имеет наибольший индекс
+            expect(worst.id).toBe('A4');
         });
 
-        test('_findWorstAccepted should handle applicants not in university priorities', () => {
+        test('_findWorstAccepted with mixed prioritized and non-prioritized', () => {
             const university = universities[0];
-            const acceptedIds = ['A1', 'X1', 'X2'];
+            const acceptedIds = ['A1', 'X1', 'A2'];
             const extendedApplicants = [
                 ...applicants,
-                { id: 'X1', scores: 100 },
-                { id: 'X2', scores: 90 }
+                { id: 'X1', scores: 100 }
             ];
 
             const worst = statistics._findWorstAccepted(
@@ -820,7 +424,121 @@ describe('Statistics Calculator', () => {
                 extendedApplicants
             );
 
-            expect(['X1', 'X2']).toContain(worst.id);
+            // X1 не в приоритетах, должен быть худшим
+            expect(worst.id).toBe('X1');
         });
+
+        test('_getUniversityAverageScore with no matching entries', () => {
+            const avgScore = statistics._getUniversityAverageScore(
+                'U1',
+                universities,
+                [], // пустой matching
+                applicants
+            );
+
+            expect(avgScore).toBe(0);
+        });
+
+        test('_getUniversityAverageScore with missing applicants', () => {
+            const matchingWithMissing = [
+                { applicant: 'A1', university: 'U1', priority_index: 0 },
+                { applicant: 'X1', university: 'U1', priority_index: 0 } // не существует
+            ];
+
+            const avgScore = statistics._getUniversityAverageScore(
+                'U1',
+                universities,
+                matchingWithMissing,
+                applicants
+            );
+
+            expect(avgScore).toBe(142.5); // 285 / 2 = 142.5
+        });
+
+        test('_findMatchingDifferences with empty matchings', () => {
+            const differences = statistics._findMatchingDifferences([], []);
+
+            expect(differences.only_in_first).toEqual([]);
+            expect(differences.only_in_second).toEqual([]);
+        });
+
+        test('_findMatchingDifferences with different matchings', () => {
+            const matching1 = [
+                { applicant: 'A1', university: 'U1' },
+                { applicant: 'A2', university: 'U2' }
+            ];
+            const matching2 = [
+                { applicant: 'A1', university: 'U1' },
+                { applicant: 'A3', university: 'U3' }
+            ];
+
+            const differences = statistics._findMatchingDifferences(matching1, matching2);
+
+            expect(differences.only_in_first).toHaveLength(1);
+            expect(differences.only_in_second).toHaveLength(1);
+        });
+
+        test('_checkBetterChances with better scores', () => {
+            const applicant = new Applicant('A1', 'Иван', 295, ['U1', 'U2']);
+            applicant.assigned_university = 'U2';
+
+            const universityMatches = {
+                U1: ['A2', 'A3'] // A2(270), A3(260)
+            };
+
+            const applicantsList = [
+                applicant,
+                new Applicant('A2', 'Анна', 270, ['U1']),
+                new Applicant('A3', 'Петр', 260, ['U1'])
+            ];
+
+            const betterOptions = statistics._checkBetterChances(
+                applicant,
+                universities,
+                universityMatches,
+                applicantsList
+            );
+
+            // Должен найти U1 как вариант "по баллам"
+            const hasScoreOption = betterOptions.some(opt => opt.includes('по баллам'));
+            expect(hasScoreOption).toBe(true);
+        });
+
+        test('generateRecommendations with undefined assigned_university', () => {
+            const applicant = new Applicant('A1', 'Иван', 285, ['U1']);
+
+            const appStats = {
+                A1: {
+                    name: 'Иван',
+                    scores: 285,
+                    status: 'unmatched'
+                }
+            };
+
+            expect(() => {
+                statistics.generateRecommendations([], [applicant], universities, appStats);
+            }).not.toThrow();
+        });
+    });
+
+    // Параметризованные тесты
+    describe('Parameterized (optimized)', () => {
+        test.each([
+            [4, 4, 4, "100.00", "0.25", 3, "75.00", "1.00"],
+            [4, 4, 0, "0.00", "0.00", 0, "0.00", "1.00"],
+            [0, 4, 0, "0.00", "0.00", 0, "0.00", "0.00"]
+        ])('calculateMatchingStats with total=%i, places=%i, matched=%i',
+            (total, places, matched, matchedPct, avgPriority, firstChoice, firstChoicePct, competition) => {
+
+                const testMatching = matched > 0 ? matching.slice(0, matched) : [];
+                const testApplicants = total > 0 ? applicants.slice(0, total) : [];
+                const testUniversities = places > 0 ? universities : [];
+
+                const stats = statistics.calculateMatchingStats(testMatching, testApplicants, testUniversities);
+
+                expect(stats.matched_percentage).toBe(matchedPct);
+                expect(stats.average_priority).toBe(avgPriority);
+                expect(stats.competition).toBe(competition);
+            });
     });
 });

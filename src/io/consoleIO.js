@@ -75,7 +75,7 @@ class ConsoleIO {
         } else {
             applicants.forEach(app => {
                 console.log(`  ${app.id}: ${app.name} (баллы: ${app.scores})`);
-                console.log(`     Приоритеты: ${app.priorities.join(' → ')}`);
+                console.log(`     Приоритеты: ${app.priorities.join(' -> ')}`);
             });
         }
 
@@ -85,7 +85,7 @@ class ConsoleIO {
         } else {
             universities.forEach(uni => {
                 console.log(`  ${uni.id}: ${uni.name} (мест: ${uni.capacity})`);
-                console.log(`     Приоритеты: ${uni.priorities.join(' → ')}`);
+                console.log(`     Приоритеты: ${uni.priorities.join(' -> ')}`);
             });
         }
     }
@@ -103,7 +103,7 @@ class ConsoleIO {
             result.matching.forEach(m => {
                 const priorityText = m.priority_index === 0 ? '(первый приоритет)' :
                     `${m.priority_index + 1}-й приоритет`;
-                console.log(`  ${m.applicant_name} → ${m.university_name} ${priorityText}`);
+                console.log(`  ${m.applicant_name} -> ${m.university_name} ${priorityText}`);
             });
         }
 
@@ -142,11 +142,11 @@ class ConsoleIO {
             if (comparison.differences) {
                 if (comparison.differences.only_in_first.length > 0) {
                     console.log('  Только в матричной версии:',
-                        comparison.differences.only_in_first.map(d => `${d.applicant}→${d.university}`).join(', '));
+                        comparison.differences.only_in_first.map(d => `${d.applicant}->${d.university}`).join(', '));
                 }
                 if (comparison.differences.only_in_second.length > 0) {
                     console.log('  Только в списковой версии:',
-                        comparison.differences.only_in_second.map(d => `${d.applicant}→${d.university}`).join(', '));
+                        comparison.differences.only_in_second.map(d => `${d.applicant}->${d.university}`).join(', '));
                 }
             }
         }
