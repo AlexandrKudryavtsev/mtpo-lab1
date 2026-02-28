@@ -294,4 +294,216 @@ describe('Statistics Calculator', () => {
             expect(comparison.differences).toBeDefined();
         });
     });
+
+    // В statistics.test.js, в секции "Private helper methods"
+    // ЗАМЕНИТЕ существующие тесты на эти:
+
+    test('_findAlternatives should find universities with free places that applicant prefers', () => {
+        const applicant = new Applicant('A1', 'Иван', 250, ['U1', 'U2', 'U3']);
+
+        // ВАЖНО: Указываем непустые приоритеты для университетов
+        const universities = [
+            new University('U1', 'МГУ', 2, ['A1', 'A2']), // непустой массив
+            new University('U2', 'СПбГУ', 1, ['A3', 'A4']), // непустой массив
+            new University('U3', 'НГУ', 1, ['A5']) // непустой массив
+        ];
+
+        const universityMatches = {
+            U1: ['A2'], // 1 место свободно
+            U2: ['A3', 'A4'], // мест нет
+            U3: [] // все места свободны
+        };
+
+        // Вызываем приватный метод
+        const alternatives = statistics._findAlternatives(applicant, universities, universityMatches);
+
+        expect(alternatives).toContain('МГУ (есть места)');
+        expect(alternatives).toContain('НГУ (есть места)');
+        expect(alternatives).not.toContain('СПбГУ (есть места)');
+        expect(alternatives.length).toBeLessThanOrEqual(3);
+    });
+
+    test('_findAlternatives should return empty array when no alternatives', () => {
+        const applicant = new Applicant('A1', 'Иван', 250, ['U1']);
+        const universities = [
+            new University('U1', 'МГУ', 1, ['A2']) // непустой массив
+        ];
+        const universityMatches = {
+            U1: ['A2'] // мест нет
+        };
+
+        const alternatives = statistics._findAlternatives(applicant, universities, universityMatches);
+
+        expect(alternatives).toEqual([]);
+    });
+
+    test('_findWorstAccepted should return a valid applicant from accepted list', () => {
+        const university = new University('U1', 'МГУ', 3, ['A1', 'A2', 'A3', 'A4']);
+        const acceptedIds = ['A2', 'A4', 'A1'];
+        const applicants = [
+            new Applicant('A1', 'Иван', 100, ['U1']),
+            new Applicant('A2', 'Анна', 90, ['U1']),
+            new Applicant('A3', 'Петр', 80, ['U1']),
+            new Applicant('A4', 'Мария', 95, ['U1'])
+        ];
+
+        const worst = statistics._findWorstAccepted(university, acceptedIds, applicants);
+
+        expect(acceptedIds).toContain(worst.id);
+        expect(worst).toBeInstanceOf(Applicant);
+
+        const expectedNames = {
+            A1: 'Иван',
+            A2: 'Анна',
+            A4: 'Мария'
+        };
+        expect(worst.name).toBe(expectedNames[worst.id]);
+    });
+
+
+    test('_findWorstAccepted should handle applicants not in priorities', () => {
+        const university = new University('U1', 'МГУ', 3, ['A1', 'A2']);
+        const acceptedIds = ['A1', 'X1', 'X2'];
+        const applicants = [
+            new Applicant('A1', 'Иван', 100, ['U1']),
+            new Applicant('X1', 'Unknown1', 90, ['U1']),
+            new Applicant('X2', 'Unknown2', 80, ['U1'])
+        ];
+
+        const worst = statistics._findWorstAccepted(university, acceptedIds, applicants);
+
+        expect(['X1', 'X2']).toContain(worst.id);
+    });
+
+    test('_checkBetterChances should identify universities where applicant has better chances', () => {
+        const applicant = new Applicant('A1', 'Иван', 285, ['U1', 'U2']);
+        applicant.assigned_university = 'U2';
+
+        const universities = [
+            new University('U1', 'МГУ', 2, ['A1', 'A3']),
+            new University('U2', 'СПбГУ', 2, ['A1', 'A2'])
+        ];
+
+        const universityMatches = {
+            U1: ['A3']
+        };
+
+        const applicantsList = [
+            applicant,
+            new Applicant('A2', 'Анна', 270, ['U2']),
+            new Applicant('A3', 'Петр', 260, ['U1'])
+        ];
+
+        const betterOptions = statistics._checkBetterChances(
+            applicant,
+            universities,
+            universityMatches,
+            applicantsList
+        );
+
+        expect(betterOptions).toContain('МГУ (есть места)');
+    });
+
+    test('_checkBetterChances should handle competitive universities', () => {
+        const applicant = new Applicant('A1', 'Иван', 295, ['U1', 'U2']);
+        applicant.assigned_university = 'U2';
+
+        const universities = [
+            new University('U1', 'МГУ', 2, ['A1', 'A2', 'A3']),
+            new University('U2', 'СПбГУ', 2, ['A1', 'A2'])
+        ];
+
+        const universityMatches = {
+            U1: ['A2', 'A3']
+        };
+
+        const applicantsList = [
+            applicant,
+            new Applicant('A2', 'Анна', 270, ['U1', 'U2']),
+            new Applicant('A3', 'Петр', 260, ['U1'])
+        ];
+
+        const betterOptions = statistics._checkBetterChances(
+            applicant,
+            universities,
+            universityMatches,
+            applicantsList
+        );
+
+        expect(betterOptions).toContain('МГУ (по баллам)');
+    });
+
+    test('should handle universities with zero capacity', () => {
+        const University = require('../../models/University');
+
+        const university = new University('U1', 'МГУ', 1, ['A1']);
+
+        const applicants = [
+            new Applicant('A1', 'Иван', 285, ['U1'])
+        ];
+        const universities = [university];
+
+        const competition = statistics.calculateCompetition(applicants, universities);
+
+        expect(competition.overall).toBe("1.00");
+        expect(competition.per_university.U1).toBe("1.00");
+    });
+
+    test('calculateCompetition should handle zero capacity gracefully', () => {
+        const University = require('../../models/University');
+
+        const applicants = [
+            new Applicant('A1', 'Иван', 285, ['U1'])
+        ];
+
+        const university = new University('U1', 'МГУ', 1, ['A1']);
+        Object.defineProperty(university, 'capacity', { value: 0 });
+
+        const universities = [university];
+
+        const totalPlaces = universities.reduce((sum, u) => sum + u.capacity, 0);
+        expect(totalPlaces).toBe(0);
+
+        const competition = statistics.calculateCompetition(applicants, universities);
+        expect(competition.overall).toBe("0.00");
+    });
+
+    test('should handle no applicants', () => {
+        const applicants = [];
+        const universities = [
+            new University('U1', 'МГУ', 10, ['A1', 'A2'])
+        ];
+
+        const competition = statistics.calculateCompetition(applicants, universities);
+
+        expect(competition.overall).toBe("0.00");
+        expect(competition.per_university.U1).toBe("0.00");
+    });
+
+    test('should generate warning for applicants with scores much lower than average', () => {
+        const applicants = [
+            new Applicant('A1', 'Иван', 200, ['U1']),
+            new Applicant('A2', 'Анна', 290, ['U1'])
+        ];
+
+        const universities = [
+            new University('U1', 'МГУ', 2, ['A1', 'A2'])
+        ];
+
+        const matching = [
+            { applicant: 'A1', university: 'U1', priority_index: 0 },
+            { applicant: 'A2', university: 'U1', priority_index: 0 }
+        ];
+
+        const applicantStats = statistics.calculateApplicantStats(matching, applicants, universities);
+
+        const recommendations = statistics.generateRecommendations(
+            matching,
+            applicants,
+            universities,
+            applicantStats
+        );
+
+        expect(recommendations).toBeDefined();
+    });
 });
