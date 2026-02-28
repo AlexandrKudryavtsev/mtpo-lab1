@@ -4,7 +4,6 @@ const JsonLoader = require('../jsonLoader');
 const Applicant = require('../../models/Applicant');
 const University = require('../../models/University');
 
-// Мокаем fs модуль
 jest.mock('fs');
 
 describe('JsonLoader', () => {
@@ -15,7 +14,6 @@ describe('JsonLoader', () => {
         jsonLoader = new JsonLoader();
         jest.clearAllMocks();
 
-        // Тестовые данные
         mockData = {
             applicants: [
                 { id: 'A1', name: 'Иван Петров', scores: 285, priorities: ['U1', 'U2'] },
@@ -419,12 +417,11 @@ describe('JsonLoader', () => {
                 fail('Should have thrown an error');
             } catch (error) {
                 expect(error.message).toMatch(/Ошибка чтения файла:/);
-                // Не проверяем конкретное сообщение, так как оно может быть "undefined"
             }
         });
 
         test('should handle validation errors in loadLargeFile', async () => {
-            const invalidData = { applicants: [] }; // Нет universities
+            const invalidData = { applicants: [] };
             const jsonString = JSON.stringify(invalidData);
 
             const mockStream = {
@@ -444,6 +441,70 @@ describe('JsonLoader', () => {
             await expect(jsonLoader.loadLargeFile('large.json'))
                 .rejects
                 .toThrow('Отсутствует массив вузов');
+        });
+    });
+
+    describe('Assumption examples in JsonLoader', () => {
+        let jsonLoader;
+        let originalEnv;
+
+        beforeEach(() => {
+            jsonLoader = new JsonLoader();
+            originalEnv = process.env.NODE_ENV;
+        });
+
+        afterEach(() => {
+            process.env.NODE_ENV = originalEnv;
+        });
+
+        test('should handle file loading with assumption about environment', async () => {
+            // Assumption 1
+            expect(process.env.NODE_ENV).toBe('test');
+
+            // Assumption 2
+            expect(fs).toBeDefined();
+
+            const error = new Error('ENOENT: file not found');
+            error.code = 'ENOENT';
+            fs.readFile.mockImplementation((filePath, encoding, callback) => {
+                callback(error, null);
+            });
+
+            await expect(jsonLoader.loadFromFile('test.json'))
+                .rejects
+                .toThrow('Файл не найден');
+        });
+
+        test('should validate data with assumption about array structure', () => {
+            // Assumption: данные имеют правильную структуру
+            expect(Array.isArray(mockData.applicants)).toBe(true);
+            expect(Array.isArray(mockData.universities)).toBe(true);
+
+            expect(() => jsonLoader.validateData(mockData)).not.toThrow();
+        });
+
+        test('should handle non-Error objects with assumption', () => {
+            // Assumption: можем обработать нестандартные ошибки
+            const nonErrorObject = 'String error';
+            expect(typeof nonErrorObject).toBe('string');
+
+            fs.readFile.mockImplementation((filePath, encoding, callback) => {
+                callback(nonErrorObject, null);
+            });
+
+            expect(jsonLoader.loadFromFile('test.json')).rejects.toThrow();
+        });
+
+        test('should skip large file test in CI environment', () => {
+            // Assumption: это не CI среда
+            const isCI = process.env.CI === 'true';
+
+            if (isCI) {
+                console.warn('Skipping large file test in CI environment');
+                return;
+            }
+
+            expect(typeof jsonLoader.loadLargeFile).toBe('function');
         });
     });
 });

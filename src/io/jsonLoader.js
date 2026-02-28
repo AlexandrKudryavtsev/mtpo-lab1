@@ -77,7 +77,6 @@ class JsonLoader {
             throw new Error('Отсутствует массив вузов');
         }
 
-        // ШАГ 1: Проверяем наличие всех обязательных полей
         data.applicants.forEach(applicant => {
             if (!applicant.id) {
                 throw new Error('Абитуриент: отсутствует поле id');
@@ -108,11 +107,9 @@ class JsonLoader {
             }
         });
 
-        // ШАГ 2: После проверки всех полей, проверяем ссылки
         const applicantIds = new Set(data.applicants.map(a => a.id));
         const universityIds = new Set(data.universities.map(u => u.id));
 
-        // Проверка, что все приоритеты абитуриентов указывают на существующие вузы
         data.applicants.forEach(applicant => {
             applicant.priorities.forEach(uniId => {
                 if (!universityIds.has(uniId)) {
@@ -121,7 +118,6 @@ class JsonLoader {
             });
         });
 
-        // Проверка, что все приоритеты вузов указывают на существующих абитуриентов
         data.universities.forEach(university => {
             university.priorities.forEach(appId => {
                 if (!applicantIds.has(appId)) {

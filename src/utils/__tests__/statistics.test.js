@@ -219,14 +219,11 @@ describe('Statistics Calculator', () => {
 
             console.log('Recommendations:', JSON.stringify(recommendations, null, 2));
 
-            // Находим все рекомендации для A2
             const recsForA2 = recommendations.filter(r => r.applicant === 'A2');
 
-            // Должна быть рекомендация о нераспределении
             const unmatchedRec = recsForA2.find(r => r.type === 'unmatched');
             expect(unmatchedRec).toBeDefined();
 
-            // Должна быть рекомендация о низких баллах
             const warningRec = recsForA2.find(r => r.type === 'warning');
             expect(warningRec).toBeDefined();
             expect(warningRec.message).toContain('низкие баллы');
@@ -243,7 +240,7 @@ describe('Statistics Calculator', () => {
             expect(u1Tip.message).toContain('2.00');
 
             const u2Tip = tips.find(t => t.university === 'U2');
-            expect(u2Tip.message).toContain('4.00'); // Высокий конкурс
+            expect(u2Tip.message).toContain('4.00');
         });
     });
 
@@ -295,13 +292,9 @@ describe('Statistics Calculator', () => {
         });
     });
 
-    // В statistics.test.js, в секции "Private helper methods"
-    // ЗАМЕНИТЕ существующие тесты на эти:
-
     test('_findAlternatives should find universities with free places that applicant prefers', () => {
         const applicant = new Applicant('A1', 'Иван', 250, ['U1', 'U2', 'U3']);
 
-        // ВАЖНО: Указываем непустые приоритеты для университетов
         const universities = [
             new University('U1', 'МГУ', 2, ['A1', 'A2']), // непустой массив
             new University('U2', 'СПбГУ', 1, ['A3', 'A4']), // непустой массив
@@ -314,7 +307,6 @@ describe('Statistics Calculator', () => {
             U3: [] // все места свободны
         };
 
-        // Вызываем приватный метод
         const alternatives = statistics._findAlternatives(applicant, universities, universityMatches);
 
         expect(alternatives).toContain('МГУ (есть места)');

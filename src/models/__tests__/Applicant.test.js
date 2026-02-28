@@ -93,4 +93,21 @@ describe('Applicant Model', () => {
             }).toThrow('Баллы не могут быть отрицательными');
         });
     });
+
+    describe('Parameterized tests', () => {
+        test.each([
+            { id: 'A1', name: 'Иван', scores: 285, priorities: ['U1'], valid: true },
+            { id: '', name: 'Иван', scores: 285, priorities: ['U1'], valid: false },
+            { id: 'A1', name: '', scores: 285, priorities: ['U1'], valid: false },
+            { id: 'A1', name: 'Иван', scores: -10, priorities: ['U1'], valid: false },
+            { id: 'A1', name: 'Иван', scores: 285, priorities: [], valid: false },
+            { id: 'A1', name: 'Иван', scores: 285, priorities: ['U1', 'U1'], valid: false }
+        ])('should validate applicant: $id, $name, $scores', ({ id, name, scores, priorities, valid }) => {
+            if (valid) {
+                expect(() => new Applicant(id, name, scores, priorities)).not.toThrow();
+            } else {
+                expect(() => new Applicant(id, name, scores, priorities)).toThrow();
+            }
+        });
+    });
 });

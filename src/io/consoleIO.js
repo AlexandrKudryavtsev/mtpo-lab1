@@ -91,7 +91,7 @@ class ConsoleIO {
     }
 
     showMatchingResults(result) {
-        console.log('\n🎯 РЕЗУЛЬТАТЫ РАСПРЕДЕЛЕНИЯ');
+        console.log('\n РЕЗУЛЬТАТЫ РАСПРЕДЕЛЕНИЯ');
         console.log('═══════════════════════════');
         console.log(`Алгоритм: ${result.algorithm}`);
         console.log(`Стабильность: ${result.stable ? 'Да' : 'Нет'}`);
@@ -114,7 +114,7 @@ class ConsoleIO {
             });
         }
 
-        console.log('\n📊 Статистика:');
+        console.log('\n Статистика:');
         console.log(`  Всего абитуриентов: ${result.statistics.total_applicants}`);
         console.log(`  Всего мест: ${result.statistics.total_places}`);
         console.log(`  Распределено: ${result.statistics.matched_count} (${result.statistics.matched_percentage}%)`);
@@ -152,9 +152,6 @@ class ConsoleIO {
         }
     }
 
-    /**
-     * Показать статистику и рекомендации
-     */
     showStatisticsAndRecommendations(matching, applicants, universities, stats, recommendations, tips) {
         console.log('\n ДЕТАЛЬНАЯ СТАТИСТИКА');
         console.log('═══════════════════════');
@@ -246,9 +243,6 @@ class ConsoleIO {
         return { applicants, universities };
     }
 
-    /**
-     * Закрыть интерфейс
-     */
     close() {
         this.rl.close();
     }
