@@ -3,3 +3,4 @@ node_modules
 .stryker-tmp
 reports
 .DS_Store
+temp_test
