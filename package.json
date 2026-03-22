@@ -36,11 +36,14 @@
   "devDependencies": {
     "@cucumber/cucumber": "^12.7.0",
     "@cucumber/pretty-formatter": "^3.2.0",
+    "@eslint/js": "^10.0.1",
     "@jazzer.js/core": "^2.1.0",
     "@stryker-mutator/core": "^9.5.1",
     "@stryker-mutator/jest-runner": "^9.5.1",
     "@types/jest": "^30.0.0",
-    "eslint": "^10.0.2",
+    "eslint": "^10.1.0",
+    "eslint-plugin-security": "^4.0.0",
+    "globals": "^17.4.0",
     "jest": "^30.2.0",
     "stryker-cli": "^1.1.0",
     "stryker-jest-runner": "^1.4.1"
