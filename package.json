@@ -10,7 +10,10 @@
     "test:verbose": "jest --verbose --coverage",
     "mutation": "stryker run",
     "test:bdd": "cucumber-js",
-    "test:bdd:pretty": "cucumber-js --format @cucumber/pretty-formatter"
+    "test:bdd:pretty": "cucumber-js --format @cucumber/pretty-formatter",
+    "fuzz:array": "jazzer fuzz/arrayIndex.js -- -max_total_time=15",
+    "fuzz:loop": "jazzer fuzz/infiniteLoop.js -- -max_total_time=15",
+    "fuzz:demo": "npm run fuzz:array && npm run fuzz:loop"
   },
   "jest": {
     "testEnvironment": "node",
@@ -33,6 +36,7 @@
   "devDependencies": {
     "@cucumber/cucumber": "^12.7.0",
     "@cucumber/pretty-formatter": "^3.2.0",
+    "@jazzer.js/core": "^2.1.0",
     "@stryker-mutator/core": "^9.5.1",
     "@stryker-mutator/jest-runner": "^9.5.1",
     "@types/jest": "^30.0.0",

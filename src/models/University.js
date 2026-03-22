@@ -215,6 +215,33 @@ class University {
 
         return university;
     }
+
+    /**
+     * бесконечный цикл при поиске
+     * @param {string} id 
+     * @returns {boolean}
+     */
+    searchWithBug(id) {
+        let i = 0;
+        // ОШИБКА: условие никогда не станет false для несуществующего id
+        while (i < this.priorities.length) {
+            if (this.priorities[i] === id) {
+                return true;
+            }
+            i++;
+        }
+        
+        // не возвращаем false, если не нашли - то цикл закончится
+        while (true) {
+            if (i >= this.priorities.length) {
+                i = 0;
+            }
+            if (this.priorities[i] === id) {
+                return true;
+            }
+            i++;
+        }
+    }
 }
 
 module.exports = University;

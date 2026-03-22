@@ -85,6 +85,16 @@ class Applicant {
             data.priorities
         );
     }
+
+    /**
+     * выход за границы массива
+     * @param {number} index 
+     * @returns {string}
+     */
+    getPriorityByIndex(index) {
+        // нет проверки на выход за границы массива
+        return this.priorities[index];
+    }
 }
 
 module.exports = Applicant;
