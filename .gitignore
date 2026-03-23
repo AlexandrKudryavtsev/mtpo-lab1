@@ -4,3 +4,6 @@ node_modules
 reports
 .DS_Store
 temp_test
+crash-*
+timeout-*
+.scannerwork
