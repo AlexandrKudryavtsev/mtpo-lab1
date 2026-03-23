@@ -13,7 +13,8 @@
     "test:bdd:pretty": "cucumber-js --format @cucumber/pretty-formatter",
     "fuzz:array": "jazzer fuzz/arrayIndex.js -- -max_total_time=15",
     "fuzz:loop": "jazzer fuzz/infiniteLoop.js -- -max_total_time=15",
-    "fuzz:demo": "npm run fuzz:array && npm run fuzz:loop"
+    "fuzz:demo": "npm run fuzz:array && npm run fuzz:loop",
+    "lint": "npx eslint src/ --format=stylish"
   },
   "jest": {
     "testEnvironment": "node",
